@@ -41,13 +41,13 @@ static struct lock tid_lock;
 static struct list destruction_req;
 
 /* Statistics. */
-static long long idle_ticks;    /* # of timer ticks spent idle. */
-static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
-static long long user_ticks;    /* # of timer ticks in user programs. */
+static long long idle_ticks;    /* CPU가 아무런 작업을 수행하지 않고 대기하는 시간을 측정하는 데 사용 */
+static long long kernel_ticks;  /* 커널 스레드가 CPU를 사용한 시간을 추적 */
+static long long user_ticks;    /* 사용자 프로그램이 CPU를 사용한 시간을 추적 */
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
-static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+static unsigned thread_ticks;   /* 마지막으로 실행된 스레드가 사용한 시간 */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -134,7 +134,7 @@ thread_start (void) {
 }
 
 /* Called by the timer interrupt handler at each timer tick.
-   Thus, this function runs in an external interrupt context. */
+   Thus, this function runs in an (하드웨어, 디바이스 인터럽트)external interrupt context. */
 void
 thread_tick (void) {
 	struct thread *t = thread_current ();
@@ -218,8 +218,8 @@ thread_create (const char *name, int priority,
    primitives in synch.h. */
 void
 thread_block (void) {
-	ASSERT (!intr_context ());
-	ASSERT (intr_get_level () == INTR_OFF);
+	ASSERT (!intr_context ());		// 인터럽트를 처리하고 있지 않아야 하고,
+	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
 	thread_current ()->status = THREAD_BLOCKED;
 	schedule ();
 }
@@ -526,9 +526,9 @@ thread_launch (struct thread *th) {
  * finds another thread to run and switches to it.
  * It's not safe to call printf() in the schedule(). */
 static void
-do_schedule(int status) {
-	ASSERT (intr_get_level () == INTR_OFF);
-	ASSERT (thread_current()->status == THREAD_RUNNING);
+do_schedule(int status) {		// 새로운 프로세스를 스케줄 하는 과정, READY, DYING
+	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 비활성화
+	ASSERT (thread_current()->status == THREAD_RUNNING);	// 현재 진행 중인
 	while (!list_empty (&destruction_req)) {
 		struct thread *victim =
 			list_entry (list_pop_front (&destruction_req), struct thread, elem);
@@ -540,17 +540,17 @@ do_schedule(int status) {
 
 static void
 schedule (void) {
-	struct thread *curr = running_thread ();
-	struct thread *next = next_thread_to_run ();
+	struct thread *curr = running_thread ();		// 현재 실행중인 스레드인 주소
+	struct thread *next = next_thread_to_run ();	// 다음에 실행될 스레드인 주소
 
-	ASSERT (intr_get_level () == INTR_OFF);
-	ASSERT (curr->status != THREAD_RUNNING);
-	ASSERT (is_thread (next));
+	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 X
+	ASSERT (curr->status != THREAD_RUNNING);	// 러닝상태가 아니어야하고
+	ASSERT (is_thread (next));					// next가 유효한 thread인지
 	/* Mark us as running. */
-	next->status = THREAD_RUNNING;
+	next->status = THREAD_RUNNING;				// next를 running상태로 만들어줌
 
 	/* Start new time slice. */
-	thread_ticks = 0;
+	thread_ticks = 0;							// 마지막으로 실행된 스레드가 사용한 시간 = 0으로 초기화
 
 #ifdef USERPROG
 	/* Activate the new address space. */
