@@ -18,7 +18,7 @@
 #endif
 
 /* 부팅된 이후의 timer ticks = kernel tick + idle tick */
-static int64_t ticks;
+static int64_t ticks;	 // 시간 표시
 
 /* 타이머 틱 당 루프 수
    Initialized by timer_calibrate(). */
@@ -72,11 +72,11 @@ timer_calibrate (void) {
 /* 운영 체제 부팅 이후의 타이머 틱 수를 반환 */
 int64_t
 timer_ticks (void) {
-	enum intr_level old_level = intr_disable ();	// 인터럽트 비활성화
-	int64_t t = ticks;
+	enum intr_level old_level = intr_disable (); // 인터럽트 비활성화
+	int64_t t = ticks;	// 비활성화 한 다음 os 기준 시간 읽고
 	intr_set_level (old_level);		// 인터럽트를 원래대로 돌려놓는 작업
 	barrier ();		// 순서에 의존해야 해서 최적화 장벽 사용
-	return t;
+	return t;		// 읽은 시간 반환
 }
 
 /* THEN 이후로 경과한 타이머 틱 수를 반환
@@ -123,7 +123,7 @@ timer_print_stats (void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
-	ticks++;
+	ticks++;	// 시간을 증가시켜 줌
 	thread_tick ();
 }
 
@@ -145,17 +145,19 @@ too_many_loops (unsigned loops) {
 	return start != ticks;
 }
 
-/* 간단한 지연을 구현하기 위해 LOOPS번 반복하는 단순한 루프를 순회
+/* Pintos 운영 체제에서 지연(delay)을 만들기 위해 사용되는 함수
 
-  NO_INLINE로 표시되어 있으며 코드 정렬이 시간에 중요한 영향을 미칠 수 있으므로
-  이 함수가 서로 다른 위치에서 다르게 인라인화되면 결과를 예측하기 어려울 수 있기 때문 */
+  loops 만큼 루프를 반복하여 CPU를 사용하며, 일정한 시간 동안 대기할 수 있게 됨
+  NO_INLINE: 컴파일러에게 함수를 인라인화하지 않도록 지시하는 역할
+   */
 static void NO_INLINE
 busy_wait (int64_t loops) {
 	while (loops-- > 0)
 		barrier ();
 }
 
-/* NUM/DENOM 초 시간 동안 sleep 수행, 정확한 시간 지연을 구현하는 데 사용 */
+/* NUM/DENOM 초 시간 동안 sleep 수행,
+정확한 시간 지연을 구현하는 데 사용 */
 static void
 real_time_sleep (int64_t num, int32_t denom) {
 	/* Convert NUM/DENOM seconds into timer ticks, rounding down.
@@ -164,7 +166,7 @@ real_time_sleep (int64_t num, int32_t denom) {
 	   ---------------------- = NUM * TIMER_FREQ / DENOM ticks.
 	   1 s / TIMER_FREQ ticks
 	   */
-	int64_t ticks = num * TIMER_FREQ / denom;
+	int64_t ticks = num * TIMER_FREQ / denom;  // 대기할 시간을 타이머 틱 단위로 변환
 
 	ASSERT (intr_get_level () == INTR_ON);	// 현재 인터럽트 상태 확인
 	if (ticks > 0) {
@@ -176,6 +178,7 @@ real_time_sleep (int64_t num, int32_t denom) {
 		  오버플로우 가능성을 피하기 위해 분자와 분모를 1000으로 축소 */
 		ASSERT (denom % 1000 == 0);
 		// 얼마나 긴 시간을 busy_wait하도록 할 것인지 계산
+		// 스레드를 대기시키는 시간이 없거나 매우 짧다는 것을 의미하므로 sleep보다는 busy_wait
 		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
 }
