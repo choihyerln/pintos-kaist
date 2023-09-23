@@ -151,21 +151,17 @@ sema_test_helper (void *sema_) {
 	}
 }
 
-/* Initializes LOCK.  A lock can be held by at most a single
-   thread at any given time.  Our locks are not "recursive", that
-   is, it is an error for the thread currently holding a lock to
-   try to acquire that lock.
+/* 락(LOCK)을 초기화합니다. 락은 언제나 최대 하나의 스레드만 보유할 수 있습니다.
+우리의 락은 '재귀적'이지 않습니다.
+즉, 현재 락을 보유한 스레드가 해당 락을 다시 얻으려고 시도하는 것은 오류입니다.
 
-   A lock is a specialization of a semaphore with an initial
-   value of 1.  The difference between a lock and such a
-   semaphore is twofold.  First, a semaphore can have a value
-   greater than 1, but a lock can only be owned by a single
-   thread at a time.  Second, a semaphore does not have an owner,
-   meaning that one thread can "down" the semaphore and then
-   another one "up" it, but with a lock the same thread must both
-   acquire and release it.  When these restrictions prove
-   onerous, it's a good sign that a semaphore should be used,
-   instead of a lock. */
+락은 초기 값이 1인 세마포어의 특별한 경우입니다.
+락과 이러한 세마포어 간의 차이는 두 가지입니다.
+첫째, 세마포어는 1보다 큰 값을 가질 수 있지만 락은 한 번에 하나의 스레드만 소유할 수 있습니다.
+둘째, 세마포어는 소유자(owner)가 없으며,
+즉 하나의 스레드가 세마포어를 '다운'하고 다른 스레드가 '업'할 수 있지만
+락은 동일한 스레드가 락을 획득하고 해제해야 합니다.
+이러한 제한이 부담스러울 때, 세마포어를 사용해야 하는 좋은 신호입니다. */
 void
 lock_init (struct lock *lock) {
 	ASSERT (lock != NULL);

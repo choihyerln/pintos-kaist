@@ -42,7 +42,7 @@ static struct list destruction_req;
 
 /* Statistics. */
 static long long idle_ticks;    /* CPU가 아무런 작업을 수행하지 않고 대기하는 시간을 측정하는 데 사용 */
-static long long kernel_ticks;  /* 커널 스레드가 CPU를 사용한 시간을 추적 */
+static long long kernel_ticks;  /* 커널 스레드가 CPU를 사용한 시간을 추적 (main) */
 static long long user_ticks;    /* 사용자 프로그램이 CPU를 사용한 시간을 추적 */
 
 /* Scheduling. */
@@ -558,13 +558,11 @@ schedule (void) {
 #endif
 
 	if (curr != next) {
-		/* If the thread we switched from is dying, destroy its struct
-		   thread. This must happen late so that thread_exit() doesn't
-		   pull out the rug under itself.
-		   We just queuing the page free reqeust here because the page is
-		   currently used by the stack.
-		   The real destruction logic will be called at the beginning of the
-		   schedule(). */
+		/* 만약 우리가 스위칭한 스레드가 종료 중인 경우, 해당 스레드의 struct thread를 파괴한다.
+		   이것은 thread_exit()가 자신의 발을 잡아당기지 않도록 늦게 발생해야 한다. 
+		   여기에서는 페이지 해제 요청을 대기열에 추가하는 것만 수행한다.
+		   왜냐하면 현재 페이지는 스택에서 사용 중이기 때문이다.
+		   실제 파괴 로직은 schdule()의 시작 부분에서 호출될 것이다. */
 		if (curr && curr->status == THREAD_DYING && curr != initial_thread) {
 			ASSERT (curr != next);
 			list_push_back (&destruction_req, &curr->elem);

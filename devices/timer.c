@@ -17,10 +17,10 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
-/* Number of timer ticks since OS booted. */
+/* 부팅된 이후의 timer ticks = kernel tick + idle tick */
 static int64_t ticks;
 
-/* Number of loops per timer tick.
+/* 타이머 틱 당 루프 수
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 
@@ -34,9 +34,8 @@ static void real_time_sleep (int64_t num, int32_t denom);
    corresponding interrupt. */
 void
 timer_init (void) {
-	/* 8254 input frequency divided by TIMER_FREQ, rounded to
-	   nearest. */
-	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;
+	/* 8254 input frequency divided by TIMER_FREQ, rounded to nearest. */
+	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;		// 8254칩의 주파수
 
 	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
 	outb (0x40, count & 0xff);
@@ -45,7 +44,7 @@ timer_init (void) {
 	intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
 
-/* Calibrates loops_per_tick, used to implement brief delays. */
+/* brief delays를 구현하는 데 사용되는 loops_per_tick를 보정 */
 void
 timer_calibrate (void) {
 	unsigned high_bit, test_bit;
@@ -70,24 +69,24 @@ timer_calibrate (void) {
 	printf ("%'"PRIu64" loops/s.\n", (uint64_t) loops_per_tick * TIMER_FREQ);
 }
 
-/* Returns the number of timer ticks since the OS booted. */
+/* 운영 체제 부팅 이후의 타이머 틱 수를 반환 */
 int64_t
 timer_ticks (void) {
-	enum intr_level old_level = intr_disable ();
+	enum intr_level old_level = intr_disable ();	// 인터럽트 비활성화
 	int64_t t = ticks;
-	intr_set_level (old_level);
-	barrier ();
+	intr_set_level (old_level);		// 인터럽트를 원래대로 돌려놓는 작업
+	barrier ();		// 순서에 의존해야 해서 최적화 장벽 사용
 	return t;
 }
 
-/* Returns the number of timer ticks elapsed since THEN, which
-   should be a value once returned by timer_ticks(). */
+/* THEN 이후로 경과한 타이머 틱 수를 반환
+   THEN(t)은 이전에 timer_ticks()로 얻은 값 */
 int64_t
 timer_elapsed (int64_t then) {
-	return timer_ticks () - then;
+	return timer_ticks () - then;	// start로부터 흐른 시간 반환
 }
 
-/* Suspends execution for approximately TICKS timer ticks. */
+/* TICKS 타이머 틱 동안 실행을 일시 중단 */
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
@@ -120,7 +119,7 @@ void
 timer_print_stats (void) {
 	printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
@@ -146,20 +145,17 @@ too_many_loops (unsigned loops) {
 	return start != ticks;
 }
 
-/* Iterates through a simple loop LOOPS times, for implementing
-   brief delays.
+/* 간단한 지연을 구현하기 위해 LOOPS번 반복하는 단순한 루프를 순회
 
-   Marked NO_INLINE because code alignment can significantly
-   affect timings, so that if this function was inlined
-   differently in different places the results would be difficult
-   to predict. */
+  NO_INLINE로 표시되어 있으며 코드 정렬이 시간에 중요한 영향을 미칠 수 있으므로
+  이 함수가 서로 다른 위치에서 다르게 인라인화되면 결과를 예측하기 어려울 수 있기 때문 */
 static void NO_INLINE
 busy_wait (int64_t loops) {
 	while (loops-- > 0)
 		barrier ();
 }
 
-/* Sleep for approximately NUM/DENOM seconds. */
+/* NUM/DENOM 초 시간 동안 sleep 수행, 정확한 시간 지연을 구현하는 데 사용 */
 static void
 real_time_sleep (int64_t num, int32_t denom) {
 	/* Convert NUM/DENOM seconds into timer ticks, rounding down.
@@ -170,17 +166,16 @@ real_time_sleep (int64_t num, int32_t denom) {
 	   */
 	int64_t ticks = num * TIMER_FREQ / denom;
 
-	ASSERT (intr_get_level () == INTR_ON);
+	ASSERT (intr_get_level () == INTR_ON);	// 현재 인터럽트 상태 확인
 	if (ticks > 0) {
-		/* We're waiting for at least one full timer tick.  Use
-		   timer_sleep() because it will yield the CPU to other
-		   processes. */
-		timer_sleep (ticks);
+		/* 최소한 하나의 전체 타이머 틱을 기다린다.
+		  다른 프로세스에 CPU를 양보하기 위해 timer_sleep()을 사용하자 */
+		timer_sleep (ticks);	// 최소한 하나의 전체 타이머 틱 동안 대기
 	} else {
-		/* Otherwise, use a busy-wait loop for more accurate
-		   sub-tick timing.  We scale the numerator and denominator
-		   down by 1000 to avoid the possibility of overflow. */
+		/* 그렇지 않으면 보다 정확한 서브-틱 타이밍을 위해 busy_wait 루프를 사용
+		  오버플로우 가능성을 피하기 위해 분자와 분모를 1000으로 축소 */
 		ASSERT (denom % 1000 == 0);
+		// 얼마나 긴 시간을 busy_wait하도록 할 것인지 계산
 		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
 }
