@@ -7,7 +7,7 @@
 #include "threads/io.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-
+#include "threads/thread.c"
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -20,6 +20,9 @@
 /* 부팅된 이후의 timer ticks = kernel tick + idle tick */
 static int64_t ticks;	 // 시간 표시
 
+/* wake 해야 할 time */
+#define WAKE_TIME 0
+
 /* 타이머 틱 당 루프 수
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -28,6 +31,7 @@ static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
+
 
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
@@ -86,14 +90,21 @@ timer_elapsed (int64_t then) {
 	return timer_ticks () - then;	// start로부터 흐른 시간 반환
 }
 
+
 /* TICKS 타이머 틱 동안 실행을 일시 중단 */
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 
 	ASSERT (intr_get_level () == INTR_ON);
+
+	thread_sleep( ticks + timer_ticks() );
+	/*
 	while (timer_elapsed (start) < ticks)
 		thread_yield ();
+	*/
+	
+
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -125,6 +136,7 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;	// 시간을 증가시켜 줌
 	thread_tick ();
+	thread_wake(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

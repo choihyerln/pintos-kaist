@@ -5,14 +5,13 @@ iPXE (https://ipxe.org) 00:03.0 CA00 PCI2.10 PnP PMM+0138B4A0+012CB4A0 CA00
 Press Ctrl-B to configure iPXE (PCI 00:03.0)...                                                                               
 
 
-Booting from Hard Disk...
-Kernel command line: -q -mlfqs run mlfqs-recent-1
+Booting from Hard Disk..Kernel command line: -q -mlfqs run mlfqs-recent-1
 0 ~ 9fc00 1
 100000 ~ 13e0000 1
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  130,867,200 loops/s.
+Calibrating timer...  78,540,800 loops/s.
 Boot complete.
 Executing 'mlfqs-recent-1':
 (mlfqs-recent-1) begin
@@ -110,7 +109,7 @@ Executing 'mlfqs-recent-1':
 (mlfqs-recent-1) end
 Execution of 'mlfqs-recent-1' complete.
 Timer: 19001 ticks
-Thread: 0 idle ticks, 19001 kernel ticks, 0 user ticks
-Console: 7129 characters output
+Thread: 0 idle ticks, 19002 kernel ticks, 0 user ticks
+Console: 7128 characters output
 Keyboard: 0 keys pressed
 Powering off...
