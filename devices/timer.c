@@ -40,7 +40,7 @@ timer_init (void) {
 	/* 8254 input frequency divided by TIMER_FREQ, rounded to nearest. */
 	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;		// 8254칩의 주파수
 
-	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
+	outb (0x43, 0x34);    		/* CW: counter 0, LSB then MSB, mode 2, binary. */
 	outb (0x40, count & 0xff);
 	outb (0x40, count >> 8);
 
@@ -97,8 +97,7 @@ timer_sleep (int64_t ticks) {
 	
 	ASSERT (intr_get_level () == INTR_ON);
 
-	thread_sleep(wake_time);
-	// 원본 (수정 전 - busy wait 방식)
+	thread_sleep( ticks + timer_ticks() );
 	/*
 	while (timer_elapsed (start) < ticks)
 		thread_yield ();
