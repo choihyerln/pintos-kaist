@@ -7,7 +7,6 @@
 #include "threads/io.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-#include "threads/thread.c"
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -94,17 +93,16 @@ timer_elapsed (int64_t then) {
 /* TICKS 타이머 틱 동안 실행을 일시 중단 */
 void
 timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks ();
+	int64_t wake_time = ticks + timer_ticks();
 	
 	ASSERT (intr_get_level () == INTR_ON);
 
-	thread_sleep( ticks + timer_ticks() );
+	thread_sleep(wake_time);
+	// 원본 (수정 전 - busy wait 방식)
 	/*
 	while (timer_elapsed (start) < ticks)
 		thread_yield ();
 	*/
-	
-
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -135,9 +133,8 @@ timer_print_stats (void) {
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;	// 시간을 증가시켜 줌
-	wake_ticks();	// interrupt에서 매 순간 ticks가 증가하므로 깨울 tick이 되면 깨운다
 	thread_tick ();
-	thread_wake(ticks);
+	thread_wake(ticks);	// interrupt에서 매 순간 ticks가 증가하므로 깨울 tick이 되면 깨운다
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
