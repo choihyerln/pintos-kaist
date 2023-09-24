@@ -124,21 +124,20 @@ intr_get_level (void) {
 	return flags & FLAG_IF ? INTR_ON : INTR_OFF;
 }
 
-/* Enables or disables interrupts as specified by LEVEL and
-   returns the previous interrupt status. */
+/* LEVEL에 지정된대로 인터럽트를 활성화 또는 비활성화하고
+	이전의 인터럽트 상태를 반환 */
 enum intr_level
 intr_set_level (enum intr_level level) {
 	return level == INTR_ON ? intr_enable () : intr_disable ();
 }
 
-/* Enables interrupts and returns the previous interrupt status. */
+/* 인터럽트를 활성화하고 이전의 인터럽트 상태를 반환 */
 enum intr_level
 intr_enable (void) {
 	enum intr_level old_level = intr_get_level ();
 	ASSERT (!intr_context ());
 
 	/* Enable interrupts by setting the interrupt flag.
-
 	   See [IA32-v2b] "STI" and [IA32-v3a] 5.8.1 "Masking Maskable
 	   Hardware Interrupts". */
 	asm volatile ("sti");
@@ -146,7 +145,7 @@ intr_enable (void) {
 	return old_level;
 }
 
-/* Disables interrupts and returns the previous interrupt status. */
+/* 인터럽트를 비활성화하고 이전의 인터럽트 상태를 반환 */
 enum intr_level
 intr_disable (void) {
 	enum intr_level old_level = intr_get_level ();
@@ -154,7 +153,7 @@ intr_disable (void) {
 	/* Disable interrupts by clearing the interrupt flag.
 	   See [IA32-v2b] "CLI" and [IA32-v3a] 5.8.1 "Masking Maskable
 	   Hardware Interrupts". */
-	asm volatile ("cli" : : : "memory");
+	asm volatile ("cli" : : : "memory");	// 인터럽트 비활성화
 
 	return old_level;
 }
@@ -221,9 +220,8 @@ register_handler (uint8_t vec_no, int dpl, enum intr_level level,
 	intr_names[vec_no] = name;
 }
 
-/* Registers external interrupt VEC_NO to invoke HANDLER, which
-   is named NAME for debugging purposes.  The handler will
-   execute with interrupts disabled. */
+/* 외부 인터럽트 VEC_NO를 HANDLER로 등록하며, 디버깅 목적으로 NAME으로 명명
+   핸들러는 인터럽트가 비활성화된 상태에서 실행된다. */
 void
 intr_register_ext (uint8_t vec_no, intr_handler_func *handler,
 		const char *name) {
