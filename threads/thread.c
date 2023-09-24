@@ -27,9 +27,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-struct list sleep_list;		// sleep queue
-
-static struct list sleep_list;
+static struct list sleep_list;		// sleep queue
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -64,6 +62,10 @@ static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
+void thread_sleep(int64_t wake_time);
+bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+void thread_wake(int64_t now_ticks);
+
 static tid_t allocate_tid (void);
 
 /* Returns true if T appears to point to a valid thread. */
@@ -217,45 +219,41 @@ thread_create (const char *name, int priority,
 	sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..!
 */
 bool
-compare_priority(struct list_elem *me, struct list_elem *you, void *aux){
+compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	/* list entry :  */
 	// me/you 라는 elem 을 이용해 해당 스레드의 시작점을 알기 위해 list entry 사용 (return struct thread *)
 	struct thread *me_t = list_entry(me, struct thread, elem);
 	struct thread *you_t = list_entry(you, struct thread, elem);
-	// me_t 가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
-	return me_t->end_tick < you_t->end_tick;
+	// me_t가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
+	return me_t->end_tick < you_t->end_tick;	// true
 }
 
 void
-thread_wake(int64_t now_ticks){
-	
-	if(list_empty(&sleep_list)){
-		return;
-	}
-	struct list_elem *front_elem  = list_front(&sleep_list);
-	struct thread *sleep_front = list_entry(front_elem, struct thread, elem);
+thread_wake(int64_t now_ticks) {
+	if(!list_empty(&sleep_list)) {
+		struct list_elem *front_elem = list_front(&sleep_list);
+		struct thread *sleep_front = list_entry(front_elem, struct thread, elem);
 
-	if(now_ticks >= sleep_front->end_tick){
-		list_pop_front(front_elem);
-		thread_unblock(sleep_front);
+		if(now_ticks >= sleep_front->end_tick) {	// 깨워야 할 시간이 지나면
+			list_pop_front(&sleep_list);			// sleep 리스트에서 빼주고
+			thread_unblock(sleep_front);			// unblock 시켜줌
+		}
 	}
 }
 
 void
-thread_sleep(int64_t wake_time ){
-	// do_schedule , schedule 때문에 터짐...ㅋ
-	// old_level = intr_disable ();
-	ASSERT (!intr_context ());					// 인터럽트를 처리하고 있지 않아야 하고,
+thread_sleep(int64_t wake_time) {
+	enum intr_level old_level = intr_disable();	// 인터럽트 비활성화
+	ASSERT (!intr_context ());		// 인터럽트를 처리하고 있지 않아야 하고,
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
-	struct thread * curr = thread_current();
-	curr->status = THREAD_BLOCKED;
-	curr->end_tick = wake_time;
-	list_insert_ordered(&sleep_list, &(thread_current ()->elem), compare_priority, NULL);
 
-	schedule ();
-
+	struct thread *curr = thread_current();
+	curr->status = THREAD_BLOCKED;	// block하는 구조체 블락 상태로 만들어줌
+	curr->end_tick = wake_time;		// block하는 구조체 깨울 시간 저장
+	list_insert_ordered(&sleep_list, &(curr->elem), compare_priority, NULL);	// sleep 리스트에 삽입정렬
+	schedule ();					// 스케줄링
+	intr_set_level(old_level);		// 인터럽트 다시 활성화
 }
-
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
