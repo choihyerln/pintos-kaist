@@ -93,7 +93,7 @@ timer_elapsed (int64_t then) {
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
-
+	
 	ASSERT (intr_get_level () == INTR_ON);
 
 	thread_sleep( ticks + start );
@@ -131,6 +131,7 @@ timer_print_stats (void) {
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;	// 시간을 증가시켜 줌
+	wake_ticks();	// interrupt에서 매 순간 ticks가 증가하므로 깨울 tick이 되면 깨운다
 	thread_tick ();
 	thread_wake(ticks);
 }
