@@ -268,14 +268,17 @@ thread_block (void) {
 	schedule ();
 }
 
+bool
+ready_priority(struct list_elem *me, struct list_elem *you, void *aux) {
+
+}
+
 /* 차단된 스레드 T를 실행 대기 상태로 전환
 T가 차단되지 않은 경우에는 오류이다.
 (현재 실행 중인 스레드를 실행 대기 상태로 만들려면 thread_yield()를 사용하십시오.)
-
 이 함수는 현재 실행 중인 스레드를 선점하지 않는다.
 호출자가 인터럽트를 비활성화한 상태에서 스레드를 차단 해제하고
-다른 데이터를 업데이트할 수 있다고 기대할 수 있기 때문이다.*/
-// 하이
+다른 데이터를 업데이트할 수 있다고 기대할 수 있기 때문이다. */
 void
 thread_unblock (struct thread *t) {
 	enum intr_level old_level;
@@ -284,9 +287,11 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
+
 	// ready_list에 넣을 때, list_insert_ordered 사용하기
-	list_insert_ordered(&ready_list, &(t->elem), , NULL)
-	list_push_back (&ready_list, &t->elem);
+	list_insert_ordered(&ready_list, &(t->elem), ready_priority, NULL);
+	// list_push_back (&ready_list, &(t->elem));
+
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
