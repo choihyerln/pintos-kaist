@@ -167,20 +167,19 @@ thread_print_stats (void) {
 			idle_ticks, kernel_ticks, user_ticks);
 }
 
-/* Creates a new kernel thread named NAME with the given initial
-   PRIORITY, which executes FUNCTION passing AUX as the argument,
-   and adds it to the ready queue.  Returns the thread identifier
-   for the new thread, or TID_ERROR if creation fails.
+/* 주어진 초기 우선순위 PRIORITY로 이름이 NAME, FUNCTION을 실행하고,
+AUX를 인수로 전달하는 새로운 커널 스레드를 생성하고, 이를 준비 큐에 추가
+새 스레드의 스레드 식별자를 반환하며, 생성에 실패한 경우 TID_ERROR를 반환
 
-   If thread_start() has been called, then the new thread may be
-   scheduled before thread_create() returns.  It could even exit
-   before thread_create() returns.  Contrariwise, the original
-   thread may run for any amount of time before the new thread is
-   scheduled.  Use a semaphore or some other form of
-   synchronization if you need to ensure ordering.
-   The code provided sets the new thread's `priority' member to
-   PRIORITY, but no actual priority scheduling is implemented.
-   Priority scheduling is the goal of Problem 1-3. */
+만약 thread_start()가 호출된 경우,
+새로운 스레드는 thread_create()가 반환되기 전에 스케줄될 수 있음
+심지어 thread_create()가 반환되기 전에 종료될 수도 있다.
+반면에 원래 스레드는 새 스레드가 스케줄되기 전에 어떤 시간이든 실행될 수 있습니다.
+순서를 보장해야 하는 경우 세마포어 또는 다른 형태의 동기화를 사용해야 한다.
+
+제공된 코드는 새 스레드의 'priority' 멤버를 PRIORITY로 설정하지만
+실제로 우선순위 스케줄링은 구현되어 있지 않다. 우선순위 스케줄링은 문제 1-3의 목표이다.*/
+
 tid_t
 thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
@@ -210,7 +209,7 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 	/* Add to run queue. */
-	thread_unblock (t);
+	thread_unblock (t);		// 로 삽입 시 priority order
 
 	return tid;
 }
@@ -286,6 +285,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
+	// ready_list에 넣을 때, list_insert_ordered 사용하기
+	list_insert_ordered(&ready_list, &(t->elem), , NULL)
 	list_push_back (&ready_list, &t->elem);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
@@ -338,8 +339,9 @@ thread_exit (void) {
 	NOT_REACHED ();
 }
 
-/* Yields the CPU.  The current thread is not put to sleep and
-   may be scheduled again immediately at the scheduler's whim. */
+/* CPU 양보
+   현재 스레드는 sleep 상태로 전환되지 않으며
+   스케줄러의 재량에 따라 즉시 다시 스케줄 될 수 있음 */
 void
 thread_yield (void) {
 	struct thread *curr = thread_current ();
@@ -354,13 +356,14 @@ thread_yield (void) {
 	intr_set_level (old_level);
 }
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
+/* 현재 스레드의 우선순위 = NEW_PRIORITY
+   현재 스레드의 우선순위를 설정하고 ready_list 정렬 */
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
 }
 
-/* Returns the current thread's priority. */
+/* 현재 스레드의 우선순위 반환 */
 int
 thread_get_priority (void) {
 	return thread_current ()->priority;
@@ -608,7 +611,7 @@ schedule (void) {
 		   이것은 thread_exit()가 자신의 발을 잡아당기지 않도록 늦게 발생해야 한다. 
 		   여기에서는 페이지 해제 요청을 대기열에 추가하는 것만 수행한다.
 		   왜냐하면 현재 페이지는 스택에서 사용 중이기 때문이다.
-		   실제 파괴 로직은 schdule()의 시작 부분에서 호출될 것이다. */
+		   실제 파괴 로직은 schedule()의 시작 부분에서 호출될 것이다. */
 		if (curr && curr->status == THREAD_DYING && curr != initial_thread) {
 			ASSERT (curr != next);
 			list_push_back (&destruction_req, &curr->elem);
