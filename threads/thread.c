@@ -283,6 +283,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
+	// ready_list에 넣을 때, list_insert_ordered 사용하기
+	list_insert_ordered(&ready_list, &(t->elem), , NULL)
 	list_push_back (&ready_list, &t->elem);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
@@ -335,8 +337,9 @@ thread_exit (void) {
 	NOT_REACHED ();
 }
 
-/* Yields the CPU.  The current thread is not put to sleep and
-   may be scheduled again immediately at the scheduler's whim. */
+/* CPU 양보
+   현재 스레드는 sleep 상태로 전환되지 않으며
+   스케줄러의 재량에 따라 즉시 다시 스케줄 될 수 있음 */
 void
 thread_yield (void) {
 	struct thread *curr = thread_current ();
@@ -351,13 +354,14 @@ thread_yield (void) {
 	intr_set_level (old_level);
 }
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
+/* 현재 스레드의 우선순위 = NEW_PRIORITY
+   현재 스레드의 우선순위를 설정하고 ready_list 정렬 */
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
 }
 
-/* Returns the current thread's priority. */
+/* 현재 스레드의 우선순위 반환 */
 int
 thread_get_priority (void) {
 	return thread_current ()->priority;

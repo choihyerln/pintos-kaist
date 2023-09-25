@@ -26,7 +26,7 @@
    - down or "P": 값이 양수가 될 때까지 기다린 다음 값을 감소시킴
 
    - up or "V": 값을 증가시킴
-   (그리고 대기 중인 스레드가 있는 경우 그 중 하나를 깨움)*/
+   (그리고 대기 중인 스레드가 있는 경우 그 중 하나를 깨움) */
 void
 sema_init (struct semaphore *sema, unsigned value) {
 	ASSERT (sema != NULL);
