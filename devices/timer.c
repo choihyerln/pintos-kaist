@@ -7,7 +7,6 @@
 #include "threads/io.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-#include "threads/thread.c"
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -41,7 +40,7 @@ timer_init (void) {
 	/* 8254 input frequency divided by TIMER_FREQ, rounded to nearest. */
 	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;		// 8254칩의 주파수
 
-	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
+	outb (0x43, 0x34);    		/* CW: counter 0, LSB then MSB, mode 2, binary. */
 	outb (0x40, count & 0xff);
 	outb (0x40, count >> 8);
 
@@ -90,11 +89,10 @@ timer_elapsed (int64_t then) {
 	return timer_ticks () - then;	// start로부터 흐른 시간 반환
 }
 
-
 /* TICKS 타이머 틱 동안 실행을 일시 중단 */
 void
 timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks ();
+	int64_t wake_time = ticks + timer_ticks();
 	
 	ASSERT (intr_get_level () == INTR_ON);
 
@@ -103,8 +101,6 @@ timer_sleep (int64_t ticks) {
 	while (timer_elapsed (start) < ticks)
 		thread_yield ();
 	*/
-	
-
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -135,9 +131,8 @@ timer_print_stats (void) {
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;	// 시간을 증가시켜 줌
-	wake_ticks();	// interrupt에서 매 순간 ticks가 증가하므로 깨울 tick이 되면 깨운다
 	thread_tick ();
-	thread_wake(ticks);
+	thread_wake(ticks);	// interrupt에서 매 순간 ticks가 증가하므로 깨울 tick이 되면 깨운다
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
