@@ -9,7 +9,7 @@ struct semaphore {
 	unsigned value;        /* 현재 세마포어 값 */
 	struct list waiters;   /* 세마포어를 기다리는 스레드 목록을 관리하기 위한 연결 리스트, 세마포어를 기다리며 차단된 스레드들이 들어감 */
 };
-
+//하이
 void sema_init (struct semaphore *, unsigned value);
 void sema_down (struct semaphore *);
 bool sema_try_down (struct semaphore *);

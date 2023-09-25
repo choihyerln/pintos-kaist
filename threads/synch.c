@@ -34,7 +34,7 @@ sema_init (struct semaphore *sema, unsigned value) {
 	sema->value = value;
 	list_init (&sema->waiters);		// 세마리스트 초기화
 }
-
+// 하이
 /* 세마포어에 대한 Down or "P" 연산
    SEMA의 값이 양수가 될 때까지 기다린 다음 값을 원자적으로 감소시킴
 
