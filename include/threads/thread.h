@@ -90,7 +90,8 @@ struct thread {
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
-	int priority;                       /* Priority. */
+	int priority;                       /* old Priority. */
+	int max_priority;					/* max donation */
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */

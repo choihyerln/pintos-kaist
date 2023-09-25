@@ -46,8 +46,8 @@ static void
 priority_condvar_thread (void *aux UNUSED) 
 {
   msg ("Thread %s starting.", thread_name ());
-  lock_acquire (&lock);
-  cond_wait (&condition, &lock);
+  lock_acquire (&lock);                       // sema down 후 현재 실행중인 스레드를 &lock 의 Holder 로 만든다.
+  cond_wait (&condition, &lock);              // 초기화한 condition(waiters), 위의 lock 전달
   msg ("Thread %s woke up.", thread_name ());
   lock_release (&lock);
 }
