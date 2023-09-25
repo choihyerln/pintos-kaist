@@ -132,7 +132,7 @@ sema_test_helper (void *sema_) {
 		sema_up (&sema[1]);
 	}
 }
-
+
 /* 락(LOCK)을 초기화합니다. 락은 언제나 최대 하나의 스레드만 보유할 수 있습니다.
 우리의 락은 '재귀적'이지 않습니다.
 즉, 현재 락을 보유한 스레드가 해당 락을 다시 얻으려고 시도하는 것은 오류입니다.
@@ -212,9 +212,9 @@ struct semaphore_elem {
 	struct semaphore semaphore;         /* This semaphore. */
 };
 
-/* Initializes condition variable COND.  A condition variable
-   allows one piece of code to signal a condition and cooperating
-   code to receive the signal and act upon it. */
+/* COND(condition variable) 초기화
+  조건 변수는 하나의 코드 조각이 조건을 신호로 보내고,
+  협력하는 코드가 그 신호를 받아 처리할 수 있도록 하는데 사용 */
 void
 cond_init (struct condition *cond) {
 	ASSERT (cond != NULL);

@@ -167,21 +167,18 @@ thread_print_stats (void) {
 			idle_ticks, kernel_ticks, user_ticks);
 }
 
-/* Creates a new kernel thread named NAME with the given initial
-   PRIORITY, which executes FUNCTION passing AUX as the argument,
-   and adds it to the ready queue.  Returns the thread identifier
-   for the new thread, or TID_ERROR if creation fails.
+/* 주어진 초기 우선순위 PRIORITY로 이름이 NAME, FUNCTION을 실행하고
+AUX를 인수로 전달하는 새로운 커널 스레드를 생성하고, 이를 준비 큐에 추가
+새 스레드의 스레드 식별자를 반환하며, 생성에 실패한 경우 TID_ERROR를 반환
 
-   If thread_start() has been called, then the new thread may be
-   scheduled before thread_create() returns.  It could even exit
-   before thread_create() returns.  Contrariwise, the original
-   thread may run for any amount of time before the new thread is
-   scheduled.  Use a semaphore or some other form of
-   synchronization if you need to ensure ordering.
+만약 thread_start()가 호출된 경우,
+새로운 스레드는 thread_create()가 반환되기 전에 스케줄될 수 있음
+심지어 thread_create()가 반환되기 전에 종료될 수도 있다.
+반면에 원래 스레드는 새 스레드가 스케줄되기 전에 어떤 시간이든 실행될 수 있습니다.
+순서를 보장해야 하는 경우 세마포어 또는 다른 형태의 동기화를 사용해야 한다.
 
-   The code provided sets the new thread's `priority' member to
-   PRIORITY, but no actual priority scheduling is implemented.
-   Priority scheduling is the goal of Problem 1-3. */
+제공된 코드는 새 스레드의 'priority' 멤버를 PRIORITY로 설정하지만
+실제로 우선순위 스케줄링은 구현되어 있지 않다. 우선순위 스케줄링은 문제 1-3의 목표이다.*/
 tid_t
 thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
@@ -211,7 +208,7 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 	/* Add to run queue. */
-	thread_unblock (t);
+	thread_unblock (t);		// 로 삽입 시 priority order
 
 	return tid;
 }
@@ -608,7 +605,7 @@ schedule (void) {
 		   이것은 thread_exit()가 자신의 발을 잡아당기지 않도록 늦게 발생해야 한다. 
 		   여기에서는 페이지 해제 요청을 대기열에 추가하는 것만 수행한다.
 		   왜냐하면 현재 페이지는 스택에서 사용 중이기 때문이다.
-		   실제 파괴 로직은 schdule()의 시작 부분에서 호출될 것이다. */
+		   실제 파괴 로직은 schedule()의 시작 부분에서 호출될 것이다. */
 		if (curr && curr->status == THREAD_DYING && curr != initial_thread) {
 			ASSERT (curr != next);
 			list_push_back (&destruction_req, &curr->elem);
