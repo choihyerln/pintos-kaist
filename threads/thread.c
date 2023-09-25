@@ -167,7 +167,7 @@ thread_print_stats (void) {
 			idle_ticks, kernel_ticks, user_ticks);
 }
 
-/* 주어진 초기 우선순위 PRIORITY로 이름이 NAME, FUNCTION을 실행하고
+/* 주어진 초기 우선순위 PRIORITY로 이름이 NAME, FUNCTION을 실행하고,
 AUX를 인수로 전달하는 새로운 커널 스레드를 생성하고, 이를 준비 큐에 추가
 새 스레드의 스레드 식별자를 반환하며, 생성에 실패한 경우 TID_ERROR를 반환
 
