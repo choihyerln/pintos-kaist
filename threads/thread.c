@@ -179,6 +179,7 @@ AUX를 인수로 전달하는 새로운 커널 스레드를 생성하고, 이를
 
 제공된 코드는 새 스레드의 'priority' 멤버를 PRIORITY로 설정하지만
 실제로 우선순위 스케줄링은 구현되어 있지 않다. 우선순위 스케줄링은 문제 1-3의 목표이다.*/
+
 tid_t
 thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
@@ -239,17 +240,18 @@ thread_wake(int64_t now_ticks) {
 }
 
 void
-thread_sleep(int64_t wake_time) {
-	enum intr_level old_level = intr_disable();	// 인터럽트 비활성화
-	ASSERT (!intr_context ());		// 인터럽트를 처리하고 있지 않아야 하고,
+thread_sleep(int64_t wake_time ){
+	// do_schedule , schedule 때문에 터짐...ㅋ
+	// old_level = intr_disable ();
+	ASSERT (!intr_context ());					// 인터럽트를 처리하고 있지 않아야 하고,
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
+	struct thread * curr = thread_current();
+	curr->status = THREAD_BLOCKED;
+	curr->end_tick = wake_time;
+	list_insert_ordered(&sleep_list, &(thread_current ()->elem), compare_priority, NULL);
 
-	struct thread *curr = thread_current();
-	curr->status = THREAD_BLOCKED;	// block하는 구조체 블락 상태로 만들어줌
-	curr->end_tick = wake_time;		// block하는 구조체 깨울 시간 저장
-	list_insert_ordered(&sleep_list, &(curr->elem), compare_priority, NULL);	// sleep 리스트에 삽입정렬
-	schedule ();					// 스케줄링
-	intr_set_level(old_level);		// 인터럽트 다시 활성화
+	schedule ();
+
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
