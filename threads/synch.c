@@ -44,16 +44,18 @@ sema_init (struct semaphore *sema, unsigned value) {
 void
 sema_down (struct semaphore *sema) {
 	enum intr_level old_level;
+	struct thread *run_curr = thread_current();
 
 	ASSERT (sema != NULL);
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();	// 인터럽트 비활성화
 	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
-		thread_block ();	// 세마리스트에 들어가면 block 처리
+		list_insert_ordered(&sema->waiters, &(run_curr->elem), compare_priority, NULL);
+		// list_push_back (&sema->waiters, &thread_current ()->elem);
+		thread_block ();	// 세마 = 0일 때, 요청 들어오면 세마리스트에 추가 후 block 처리
 	}
-	sema->value--;			// 세마리스트 들어갔으니까 down 처리
+	sema->value--;			// sema = 1일 때
 	intr_set_level (old_level);		// 인터럽트 상태 반환
 }
 
@@ -92,10 +94,10 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
+	if (!list_empty (&sema->waiters))	// waiters에 들어있을 때
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
-	sema->value++;
+					struct thread, elem));	// unblock처리 -> ready list로 옮겨줌
+	sema->value++;	// sema 값 증가
 	intr_set_level (old_level);
 }
 
@@ -152,20 +154,24 @@ lock_init (struct lock *lock) {
 	sema_init (&lock->semaphore, 1);
 }
 
-
-/* LOCK을 획득하고, 필요한 경우 사용 가능해질 때까지 대기합니다.
+/* LOCK 요청
+ * lock을 획득하거나, 누군가 lock을 보유하고 있다면 사용 가능해질 때까지 대기
  * 현재 스레드가 LOCK을 이미 보유하고 있으면 안 됩니다.
  * 이 함수는 대기 상태로 들어갈 수 있으므로 인터럽트 핸들러 내에서 호출해서는 안 됩니다.
  * 이 함수는 인터럽트가 비활성화된 상태에서 호출될 수 있지만,
  * 대기가 필요한 경우 인터럽트가 다시 활성화됩니다. */
 void
 lock_acquire (struct lock *lock) {
+	struct thread *curr = thread_current();
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
-
+	// lock을 요청한 스레드의 우선순위가 현재 lock->holder의 우선순위보다 클 때
+	if (lock->holder && lock->holder->donate_priority < curr->priority) {
+		lock->holder->donate_priority = curr->priority;
+	}
 	sema_down (&lock->semaphore);
-	lock->holder = thread_current ();
+	lock->holder = curr;
 }
 
 /* LOCK을 획득을 시도하고, 성공한 경우에는 true를 반환하며 실패한 경우에는 false를 반환
@@ -192,8 +198,10 @@ lock_release (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
 
+	lock->holder->donate_priority = lock->holder->priority;		// 기부한거 회수
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
+	thread_yield();		// sema_up에서 unblock일어나므로 양보 작업 해줘야 함
 }
 
 /* 현재 스레드가 LOCK을 보유하고 있는 경우 true를 반환하고, 그렇지 않으면 false를 반환
@@ -244,7 +252,8 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	sema_init (&waiter.semaphore, 0);
-	list_push_back (&cond->waiters, &waiter.elem);
+	list_insert_ordered(&cond->waiters, &waiter.elem, compare_priority, NULL);
+	// list_push_back (&cond->waiters, &waiter.elem);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);

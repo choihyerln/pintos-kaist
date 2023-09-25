@@ -9,7 +9,6 @@
 #include "vm/vm.h"
 #endif
 
-
 /* States in a thread's life cycle. */
 enum thread_status {
 	THREAD_RUNNING,     /* Running thread. */
@@ -95,6 +94,7 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 	int64_t end_tick;					/* End tick */
+	int donate_priority;				/* 기부받은 priority */
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -126,6 +126,7 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
+bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
