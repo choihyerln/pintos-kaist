@@ -6,10 +6,10 @@
 
 /* A counting semaphore. */
 struct semaphore {
-	unsigned value;             /* Current value. */
-	struct list waiters;        /* List of waiting threads. */
+	unsigned value;        /* 현재 세마포어 값 */
+	struct list waiters;   /* 세마포어를 기다리는 스레드 목록을 관리하기 위한 연결 리스트, 세마포어를 기다리며 차단된 스레드들이 들어감 */
 };
-
+//하이
 void sema_init (struct semaphore *, unsigned value);
 void sema_down (struct semaphore *);
 bool sema_try_down (struct semaphore *);
@@ -18,8 +18,8 @@ void sema_self_test (void);
 
 /* Lock. */
 struct lock {
-	struct thread *holder;      /* Thread holding lock (for debugging). */
-	struct semaphore semaphore; /* Binary semaphore controlling access. */
+	struct thread *holder;      /* 현재 락을 소유한 스레드 (for debugging). */
+	struct semaphore semaphore; /* 락을 구현하기 위해 이진 세마포어를 활용한 구조체 */
 };
 
 void lock_init (struct lock *);

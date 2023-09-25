@@ -27,9 +27,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-struct list sleep_list;		// sleep queue
-
-static struct list sleep_list;
+static struct list sleep_list;		// sleep queue
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -64,6 +62,10 @@ static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
+void thread_sleep(int64_t wake_time);
+bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+void thread_wake(int64_t now_ticks);
+
 static tid_t allocate_tid (void);
 
 /* Returns true if T appears to point to a valid thread. */
@@ -165,21 +167,18 @@ thread_print_stats (void) {
 			idle_ticks, kernel_ticks, user_ticks);
 }
 
-/* Creates a new kernel thread named NAME with the given initial
-   PRIORITY, which executes FUNCTION passing AUX as the argument,
-   and adds it to the ready queue.  Returns the thread identifier
-   for the new thread, or TID_ERROR if creation fails.
+/* 주어진 초기 우선순위 PRIORITY로 이름이 NAME, FUNCTION을 실행하고,
+AUX를 인수로 전달하는 새로운 커널 스레드를 생성하고, 이를 준비 큐에 추가
+새 스레드의 스레드 식별자를 반환하며, 생성에 실패한 경우 TID_ERROR를 반환
 
-   If thread_start() has been called, then the new thread may be
-   scheduled before thread_create() returns.  It could even exit
-   before thread_create() returns.  Contrariwise, the original
-   thread may run for any amount of time before the new thread is
-   scheduled.  Use a semaphore or some other form of
-   synchronization if you need to ensure ordering.
+만약 thread_start()가 호출된 경우,
+새로운 스레드는 thread_create()가 반환되기 전에 스케줄될 수 있음
+심지어 thread_create()가 반환되기 전에 종료될 수도 있다.
+반면에 원래 스레드는 새 스레드가 스케줄되기 전에 어떤 시간이든 실행될 수 있습니다.
+순서를 보장해야 하는 경우 세마포어 또는 다른 형태의 동기화를 사용해야 한다.
 
-   The code provided sets the new thread's `priority' member to
-   PRIORITY, but no actual priority scheduling is implemented.
-   Priority scheduling is the goal of Problem 1-3. */
+제공된 코드는 새 스레드의 'priority' 멤버를 PRIORITY로 설정하지만
+실제로 우선순위 스케줄링은 구현되어 있지 않다. 우선순위 스케줄링은 문제 1-3의 목표이다.*/
 tid_t
 thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
@@ -209,7 +208,7 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 	/* Add to run queue. */
-	thread_unblock (t);
+	thread_unblock (t);		// 로 삽입 시 priority order
 
 	return tid;
 }
@@ -217,45 +216,41 @@ thread_create (const char *name, int priority,
 	sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..!
 */
 bool
-compare_priority(struct list_elem *me, struct list_elem *you, void *aux){
+compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	/* list entry :  */
 	// me/you 라는 elem 을 이용해 해당 스레드의 시작점을 알기 위해 list entry 사용 (return struct thread *)
 	struct thread *me_t = list_entry(me, struct thread, elem);
 	struct thread *you_t = list_entry(you, struct thread, elem);
-	// me_t 가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
-	return me_t->end_tick < you_t->end_tick;
+	// me_t가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
+	return me_t->end_tick < you_t->end_tick;	// true
 }
 
 void
-thread_wake(int64_t now_ticks){
-	
-	if(list_empty(&sleep_list)){
-		return;
-	}
-	struct list_elem *front_elem  = list_front(&sleep_list);
-	struct thread *sleep_front = list_entry(front_elem, struct thread, elem);
+thread_wake(int64_t now_ticks) {
+	if(!list_empty(&sleep_list)) {
+		struct list_elem *front_elem = list_front(&sleep_list);
+		struct thread *sleep_front = list_entry(front_elem, struct thread, elem);
 
-	if(now_ticks >= sleep_front->end_tick){
-		list_pop_front(front_elem);
-		thread_unblock(sleep_front);
+		if(now_ticks >= sleep_front->end_tick) {	// 깨워야 할 시간이 지나면
+			list_pop_front(&sleep_list);			// sleep 리스트에서 빼주고
+			thread_unblock(sleep_front);			// unblock 시켜줌
+		}
 	}
 }
 
 void
-thread_sleep(int64_t wake_time ){
-	// do_schedule , schedule 때문에 터짐...ㅋ
-	// old_level = intr_disable ();
-	ASSERT (!intr_context ());					// 인터럽트를 처리하고 있지 않아야 하고,
+thread_sleep(int64_t wake_time) {
+	enum intr_level old_level = intr_disable();	// 인터럽트 비활성화
+	ASSERT (!intr_context ());		// 인터럽트를 처리하고 있지 않아야 하고,
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
-	struct thread * curr = thread_current();
-	curr->status = THREAD_BLOCKED;
-	curr->end_tick = wake_time;
-	list_insert_ordered(&sleep_list, &(thread_current ()->elem), compare_priority, NULL);
 
-	schedule ();
-
+	struct thread *curr = thread_current();
+	curr->status = THREAD_BLOCKED;	// block하는 구조체 블락 상태로 만들어줌
+	curr->end_tick = wake_time;		// block하는 구조체 깨울 시간 저장
+	list_insert_ordered(&sleep_list, &(curr->elem), compare_priority, NULL);	// sleep 리스트에 삽입정렬
+	schedule ();					// 스케줄링
+	intr_set_level(old_level);		// 인터럽트 다시 활성화
 }
-
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -273,13 +268,17 @@ thread_block (void) {
 	schedule ();
 }
 
+bool
+ready_priority(struct list_elem *me, struct list_elem *you, void *aux) {
+
+}
+
 /* 차단된 스레드 T를 실행 대기 상태로 전환
 T가 차단되지 않은 경우에는 오류이다.
 (현재 실행 중인 스레드를 실행 대기 상태로 만들려면 thread_yield()를 사용하십시오.)
-
 이 함수는 현재 실행 중인 스레드를 선점하지 않는다.
 호출자가 인터럽트를 비활성화한 상태에서 스레드를 차단 해제하고
-다른 데이터를 업데이트할 수 있다고 기대할 수 있기 때문이다.*/
+다른 데이터를 업데이트할 수 있다고 기대할 수 있기 때문이다. */
 void
 thread_unblock (struct thread *t) {
 	enum intr_level old_level;
@@ -288,7 +287,11 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+
+	// ready_list에 넣을 때, list_insert_ordered 사용하기
+	list_insert_ordered(&ready_list, &(t->elem), ready_priority, NULL);
+	// list_push_back (&ready_list, &(t->elem));
+
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -340,8 +343,9 @@ thread_exit (void) {
 	NOT_REACHED ();
 }
 
-/* Yields the CPU.  The current thread is not put to sleep and
-   may be scheduled again immediately at the scheduler's whim. */
+/* CPU 양보
+   현재 스레드는 sleep 상태로 전환되지 않으며
+   스케줄러의 재량에 따라 즉시 다시 스케줄 될 수 있음 */
 void
 thread_yield (void) {
 	struct thread *curr = thread_current ();
@@ -356,13 +360,14 @@ thread_yield (void) {
 	intr_set_level (old_level);
 }
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
+/* 현재 스레드의 우선순위 = NEW_PRIORITY
+   현재 스레드의 우선순위를 설정하고 ready_list 정렬 */
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
 }
 
-/* Returns the current thread's priority. */
+/* 현재 스레드의 우선순위 반환 */
 int
 thread_get_priority (void) {
 	return thread_current ()->priority;
@@ -610,7 +615,7 @@ schedule (void) {
 		   이것은 thread_exit()가 자신의 발을 잡아당기지 않도록 늦게 발생해야 한다. 
 		   여기에서는 페이지 해제 요청을 대기열에 추가하는 것만 수행한다.
 		   왜냐하면 현재 페이지는 스택에서 사용 중이기 때문이다.
-		   실제 파괴 로직은 schdule()의 시작 부분에서 호출될 것이다. */
+		   실제 파괴 로직은 schedule()의 시작 부분에서 호출될 것이다. */
 		if (curr && curr->status == THREAD_DYING && curr != initial_thread) {
 			ASSERT (curr != next);
 			list_push_back (&destruction_req, &curr->elem);
