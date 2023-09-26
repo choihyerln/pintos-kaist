@@ -180,7 +180,7 @@ AUX를 인수로 전달하는 새로운 커널 스레드를 생성하고, 이를
 순서를 보장해야 하는 경우 세마포어 또는 다른 형태의 동기화를 사용해야 한다.
 
 제공된 코드는 새 스레드의 'priority' 멤버를 PRIORITY로 설정하지만
-실제로 우선순위 스케줄링은 구현되어 있지 않다. 우선순위 스케줄링은 문제 1-3의 목표이다.*/
+실제로 우선순위 스케줄링은 구현되어 있지 않다. 우선순위 스케줄링은 문제 1-3의 목표이다. */
 tid_t
 thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
@@ -226,6 +226,13 @@ compare_ticks(struct list_elem *me, struct list_elem *you, void *aux) {
 }
 
 /* 우선순위 비교 (숫자 클수록 우선순위 높음) */
+bool
+donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
+	struct thread *lock_holder = list_entry(me, struct thread, elem);
+	struct thread *lock_requester = list_entry(you, struct thread, elem);
+	return lock_holder->donate_priority > lock_requester->priority;
+}
+
 bool
 compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	struct thread *lock_holder = list_entry(me, struct thread, elem);
@@ -292,7 +299,7 @@ thread_unblock (struct thread *t) {
 	ASSERT (t->status == THREAD_BLOCKED);
 
 	// ready_list에 넣을 때, list_insert_ordered 사용하기
-	list_insert_ordered(&ready_list, &(t->elem), compare_priority, NULL);
+	list_insert_ordered(&ready_list, &(t->elem), donate_compare_priority, NULL);
 	// list_push_back (&ready_list, &(t->elem));
 
 	t->status = THREAD_READY;
@@ -377,7 +384,7 @@ thread_set_priority (int new_priority) {
 /* 현재 스레드의 우선순위 반환 */
 int
 thread_get_priority (void) {
-	return thread_current ()->priority;
+	return thread_current ()->donate_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -601,6 +608,7 @@ do_schedule(int status) {		// 새로운 프로세스를 스케줄 하는 과정,
 static void
 schedule (void) {
 	struct thread *curr = running_thread ();		// 현재 실행중인 스레드인 주소
+	// printf("--- 현재 실행 중: %d\n", curr->priority);
 	struct thread *next = next_thread_to_run ();	// 다음에 실행될 스레드인 주소
 
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 X
@@ -631,6 +639,7 @@ schedule (void) {
 		/* Before switching the thread, we first save the information
 		 * of current running. */
 		thread_launch (next);
+		// printf("--- 그 다음 실행되는 애: %d\n", next->priority);
 	}
 }
 

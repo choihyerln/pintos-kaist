@@ -1,13 +1,22 @@
-/* The main thread acquires locks A and B, then it creates two
-   higher-priority threads.  Each of these threads blocks
-   acquiring one of the locks and thus donate their priority to
-   the main thread.  The main thread releases the locks in turn
-   and relinquishes its donated priorities.
-   
-   Based on a test originally submitted for Stanford's CS 140 in
-   winter 1999 by Matt Franklin <startled@leland.stanford.edu>,
-   Greg Hutchins <gmh@leland.stanford.edu>, Yu Ping Hu
-   <yph@cs.stanford.edu>.  Modified by arens. */
+/* 주 스레드(main thread)가 락 A와 락 B를 획득한 후,
+더 높은 우선순위를 가진 두 개의 스레드를 생성합니다.
+이 두 스레드는 각각 락 중 하나를 획득하려고 시도하면서
+우선순위를 주 스레드에 기부합니다. 주 스레드는 순서대로 락을 해제하고,
+기부받은 우선순위를 포기합니다.
+
+이러한 상황은 우선순위 기부(priority donation)의 개념을 보여주는 예시입니다.
+주 스레드가 락을 소유하고 있지만, 높은 우선순위를 가진 스레드들이
+해당 락을 획득하려고 시도하면 높은 우선순위를 기부합니다.
+이것은 락 기반의 동시성 제어에서 데드락(deadlock)을 피하기 위한 중요한 메커니즘 중 하나입니다.
+
+우선순위 기부는 스레드 간의 우선순위 역전(priority inversion) 문제를
+해결하는 데 사용됩니다. 주 스레드는 기본적으로 낮은 우선순위를 가지고 있지만,
+다른 높은 우선순위 스레드가 필요한 자원(락)을 대기하고 있을 때
+해당 자원을 빠르게 해제하도록 유도됩니다.
+
+이러한 상황에서는 주 스레드가 다른 스레드의 우선순위를 임시로 빌리지만,
+락이 해제되면 해당 스레드는 다시 자신의 원래 우선순위로 돌아갑니다.
+이렇게 함으로써 우선순위 기부 메커니즘은 시스템 전체의 효율적인 우선순위 스케줄링을 가능하게 합니다. */
 
 #include <stdio.h>
 #include "tests/threads/tests.h"

@@ -51,8 +51,7 @@ sema_down (struct semaphore *sema) {
 
 	old_level = intr_disable ();	// 인터럽트 비활성화
 	while (sema->value == 0) {
-		list_insert_ordered(&sema->waiters, &(run_curr->elem), compare_priority, NULL);
-		// list_push_back (&sema->waiters, &thread_current ()->elem);
+		list_insert_ordered(&sema->waiters, &(run_curr->elem), donate_compare_priority, NULL);
 		thread_block ();	// 세마 = 0일 때, 요청 들어오면 세마리스트에 추가 후 block 처리
 	}
 	sema->value--;			// sema = 1일 때
@@ -163,6 +162,7 @@ lock_init (struct lock *lock) {
 void
 lock_acquire (struct lock *lock) {
 	struct thread *curr = thread_current();
+	// printf("%d\n", curr->priority);
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
@@ -202,6 +202,7 @@ lock_release (struct lock *lock) {
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
 	thread_yield();		// sema_up에서 unblock 일어나므로 양보 작업 해줘야 함
+	// lock->holder = thread_current();
 }
 
 /* 현재 스레드가 LOCK을 보유하고 있는 경우 true를 반환하고, 그렇지 않으면 false를 반환
@@ -252,8 +253,8 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	sema_init (&waiter.semaphore, 0);
-	list_insert_ordered(&cond->waiters, &waiter.elem, compare_priority, NULL);
-	// list_push_back (&cond->waiters, &waiter.elem);
+	// list_insert_ordered(&cond->waiters, &waiter.elem, compare_priority, NULL);
+	list_push_back (&cond->waiters, &waiter.elem);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
