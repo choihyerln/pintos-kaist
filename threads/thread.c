@@ -116,7 +116,6 @@ thread_init (void) {
 	list_init (&ready_list);
 	list_init (&sleep_list);
 	list_init (&destruction_req);
-	// list_init 
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -215,9 +214,7 @@ thread_create (const char *name, int priority,
 	thread_yield();			// 우선순위 비교해서 running할지 확인
 	return tid;
 }
-/*
-	sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..!
-*/
+/* sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..! */
 bool
 compare_ticks(struct list_elem *me, struct list_elem *you, void *aux) {
 	/* list entry :  */
@@ -227,12 +224,13 @@ compare_ticks(struct list_elem *me, struct list_elem *you, void *aux) {
 	// me_t가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
 	return me_t->end_tick < you_t->end_tick;
 }
+
 /* 우선순위 비교 (숫자 클수록 우선순위 높음) */
 bool
 compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	struct thread *lock_holder = list_entry(me, struct thread, elem);
 	struct thread *lock_requester = list_entry(you, struct thread, elem);
-	return lock_holder->donate_priority > lock_requester->priority;
+	return lock_holder->priority > lock_requester->priority;
 }
 
 void

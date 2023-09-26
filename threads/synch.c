@@ -168,7 +168,7 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!lock_held_by_current_thread (lock));
 	// lock을 요청한 스레드의 우선순위가 현재 lock->holder의 우선순위보다 클 때
 	if (lock->holder && lock->holder->donate_priority < curr->priority) {
-		lock->holder->donate_priority = curr->priority;
+		lock->holder->donate_priority = curr->priority;		// donation
 	}
 	sema_down (&lock->semaphore);
 	lock->holder = curr;
@@ -198,10 +198,10 @@ lock_release (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
 
-	lock->holder->donate_priority = lock->holder->priority;		// 기부한거 회수
+	lock->holder->donate_priority = lock->holder->priority;		// donation 회수
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
-	thread_yield();		// sema_up에서 unblock일어나므로 양보 작업 해줘야 함
+	thread_yield();		// sema_up에서 unblock 일어나므로 양보 작업 해줘야 함
 }
 
 /* 현재 스레드가 LOCK을 보유하고 있는 경우 true를 반환하고, 그렇지 않으면 false를 반환
