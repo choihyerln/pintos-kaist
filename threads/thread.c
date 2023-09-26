@@ -225,7 +225,7 @@ compare_ticks(struct list_elem *me, struct list_elem *you, void *aux) {
 	return me_t->end_tick < you_t->end_tick;
 }
 
-/* 우선순위 비교 (숫자 클수록 우선순위 높음) */
+/* donate 시 우선순위 비교 (숫자 클수록 우선순위 높음) */
 bool
 donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	struct thread *lock_holder = list_entry(me, struct thread, elem);
@@ -233,6 +233,7 @@ donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux) 
 	return lock_holder->donate_priority > lock_requester->priority;
 }
 
+/* 우선순위 비교 (숫자 클수록 우선순위 높음) */
 bool
 compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	struct thread *lock_holder = list_entry(me, struct thread, elem);
