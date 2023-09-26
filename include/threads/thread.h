@@ -95,6 +95,8 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 	int64_t end_tick;					/* End tick */
+	int donated_max;				/* Donated Priority */
+	//struct list_elem  donated_max;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -133,7 +135,7 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
-
+void holder_yield (void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
@@ -144,4 +146,5 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
+bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 #endif /* threads/thread.h */

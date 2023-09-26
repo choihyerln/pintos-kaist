@@ -63,7 +63,8 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 void thread_sleep(int64_t wake_time);
-bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);
+bool compare_holder_waiter(struct list_elem *me, struct list_elem *you, void *aux);
 void thread_wake(int64_t now_ticks);
 
 static tid_t allocate_tid (void);
@@ -209,20 +210,19 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);		// 로 삽입 시 priority order
-
+	thread_yield();
 	return tid;
 }
 /*
 	sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..!
 */
 bool
-compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
-	/* list entry :  */
+compare_ticks(struct list_elem *runner, struct list_elem *sleeper, void *aux) {
 	// me/you 라는 elem 을 이용해 해당 스레드의 시작점을 알기 위해 list entry 사용 (return struct thread *)
-	struct thread *me_t = list_entry(me, struct thread, elem);
-	struct thread *you_t = list_entry(you, struct thread, elem);
+	struct thread *curr = list_entry(runner, struct thread, elem);
+	struct thread *sleeper_t = list_entry(sleeper, struct thread, elem);
 	// me_t가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
-	return me_t->end_tick < you_t->end_tick;	// true
+	return curr->end_tick < sleeper_t->end_tick;	// true
 }
 
 void
@@ -247,7 +247,7 @@ thread_sleep(int64_t wake_time) {
 	struct thread *curr = thread_current();
 	curr->status = THREAD_BLOCKED;	// block하는 구조체 블락 상태로 만들어줌
 	curr->end_tick = wake_time;		// block하는 구조체 깨울 시간 저장
-	list_insert_ordered(&sleep_list, &(curr->elem), compare_priority, NULL);	// sleep 리스트에 삽입정렬
+	list_insert_ordered(&sleep_list, &(curr->elem), compare_ticks, NULL);	// sleep 리스트에 삽입정렬
 	schedule ();					// 스케줄링
 	intr_set_level(old_level);		// 인터럽트 다시 활성화
 }
@@ -263,14 +263,16 @@ thread_block (void) {
 	ASSERT (!intr_context ());		// 인터럽트를 처리하고 있지 않아야 하고,
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
 	thread_current ()->status = THREAD_BLOCKED;
-	//(struct list *, struct list_elem *, list_less_func *, void *aux)
 
 	schedule ();
 }
 
 bool
-ready_priority(struct list_elem *me, struct list_elem *you, void *aux) {
+compare_priority(struct list_elem *trier_blk, struct list_elem *list_blk, void *aux) {
+	struct thread *trier = list_entry(trier_blk, struct thread, elem);
+	struct thread *list_one = list_entry(list_blk, struct thread, elem);
 
+	return trier->priority > list_one->priority;	// true
 }
 
 /* 차단된 스레드 T를 실행 대기 상태로 전환
@@ -289,10 +291,11 @@ thread_unblock (struct thread *t) {
 	ASSERT (t->status == THREAD_BLOCKED);
 
 	// ready_list에 넣을 때, list_insert_ordered 사용하기
-	list_insert_ordered(&ready_list, &(t->elem), ready_priority, NULL);
-	// list_push_back (&ready_list, &(t->elem));
+	list_insert_ordered(&ready_list, &(t->elem), compare_priority, NULL);
 
 	t->status = THREAD_READY;
+
+
 	intr_set_level (old_level);
 }
 
@@ -355,7 +358,28 @@ thread_yield (void) {
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &(curr->elem), compare_priority, NULL);
+	do_schedule (THREAD_READY);
+	intr_set_level (old_level);
+}
+bool
+compare_holder_waiter(struct list_elem *lock_holder, struct list_elem *lock_waiter, void *aux) {
+	struct thread *holder = list_entry(lock_holder, struct thread, elem);
+	struct thread *waiter = list_entry(lock_waiter, struct thread, elem);
+
+	return holder->donated_max > waiter->priority;	// true
+}
+
+void
+holder_yield (void) {
+	struct thread *curr = thread_current ();
+	enum intr_level old_level;
+
+	ASSERT (!intr_context ());
+
+	old_level = intr_disable ();
+	if (curr != idle_thread)
+		list_insert_ordered(&ready_list, &(curr->elem), compare_holder_waiter, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -364,13 +388,15 @@ thread_yield (void) {
    현재 스레드의 우선순위를 설정하고 ready_list 정렬 */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
+	struct thread *curr = thread_current ();
+	curr->priority = new_priority;
+	thread_yield();
 }
 
 /* 현재 스레드의 우선순위 반환 */
 int
 thread_get_priority (void) {
-	return thread_current ()->priority;
+	return thread_current ()->donated_max;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -461,6 +487,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
+	t->donated_max = priority;
 	t->magic = THREAD_MAGIC;
 }
 

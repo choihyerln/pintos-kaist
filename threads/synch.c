@@ -44,13 +44,14 @@ sema_init (struct semaphore *sema, unsigned value) {
 void
 sema_down (struct semaphore *sema) {
 	enum intr_level old_level;
+	struct thread * curr = thread_current();
 
 	ASSERT (sema != NULL);
 	ASSERT (!intr_context ());
-
 	old_level = intr_disable ();	// 인터럽트 비활성화
+
 	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
+		list_insert_ordered(&sema->waiters, &(curr->elem), compare_priority, NULL);
 		thread_block ();	// 세마리스트에 들어가면 block 처리
 	}
 	sema->value--;			// 세마리스트 들어갔으니까 down 처리
@@ -160,12 +161,18 @@ lock_init (struct lock *lock) {
  * 대기가 필요한 경우 인터럽트가 다시 활성화됩니다. */
 void
 lock_acquire (struct lock *lock) {
+	struct thread *trier = thread_current ();
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
-
+	
+	if(lock->holder){
+		if(lock->holder->donated_max < trier->priority){
+			lock->holder->donated_max = trier->priority;
+		}
+	}
 	sema_down (&lock->semaphore);
-	lock->holder = thread_current ();
+	lock->holder = trier;
 }
 
 /* LOCK을 획득을 시도하고, 성공한 경우에는 true를 반환하며 실패한 경우에는 false를 반환
@@ -192,8 +199,10 @@ lock_release (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
 
+	lock->holder->donated_max = lock->holder->priority;
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
+	holder_yield();
 }
 
 /* 현재 스레드가 LOCK을 보유하고 있는 경우 true를 반환하고, 그렇지 않으면 false를 반환
@@ -245,6 +254,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 
 	sema_init (&waiter.semaphore, 0);
 	list_push_back (&cond->waiters, &waiter.elem);
+	// list_insert_ordered(&cond->waiters, &waiter.elem, compare_priority, NULL);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
