@@ -212,7 +212,11 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);		// status ready로 바꿔주고 새로 생성한거 ready list에 넣어줌
-	thread_yield();			// 우선순위 비교해서 running할지 확인
+	if (thread_current()->priority < t->priority){
+		
+		thread_yield();			// 우선순위 비교해서 running할지 확인
+		// printf("\nthread_create-후: %d %s \n",thread_current()->priority,thread_current()->name);
+	}
 	return tid;
 }
 /*
@@ -232,7 +236,15 @@ bool
 compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	struct thread *lock_holder = list_entry(me, struct thread, elem);
 	struct thread *lock_requester = list_entry(you, struct thread, elem);
-	return lock_holder->donate_priority > lock_requester->priority;
+	return lock_holder->priority > lock_requester->priority;
+}
+
+/* 우선순위 비교 (숫자 클수록 우선순위 높음) */
+bool
+compare_dpriority(struct list_elem *me, struct list_elem *you, void *aux) {
+	struct thread *lock_holder = list_entry(me, struct thread, d_elem);
+	struct thread *lock_requester = list_entry(you, struct thread, d_elem);
+	return lock_holder->priority > lock_requester->priority;
 }
 
 void
@@ -372,7 +384,8 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	struct thread *curr = thread_current();
-	curr->priority = new_priority;
+	curr->origin_priority = new_priority;
+	refresh_priority();
 	thread_yield();
 }
 
@@ -470,7 +483,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
-	t->donate_priority = priority;
+	t->origin_priority = priority;
+	list_init(&t->donation_list);
+	t->want_lock = NULL;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -633,6 +648,7 @@ schedule (void) {
 		/* Before switching the thread, we first save the information
 		 * of current running. */
 		thread_launch (next);
+		// printf("\nschedule: %s \n",&curr->name);
 	}
 }
 

@@ -52,11 +52,11 @@ l_thread_func (void *ls_)
   struct lock_and_sema *ls = ls_;
 
   lock_acquire (&ls->lock);
-  msg ("Thread L acquired lock.");
+  msg ("Thread L acquired lock.");    //1
   sema_down (&ls->sema);
-  msg ("Thread L downed semaphore.");
+  msg ("Thread L downed semaphore."); //2
   lock_release (&ls->lock);
-  msg ("Thread L finished.");
+  msg ("Thread L finished.");         //6
 }
 
 static void
@@ -65,7 +65,7 @@ m_thread_func (void *ls_)
   struct lock_and_sema *ls = ls_;
 
   sema_down (&ls->sema);
-  msg ("Thread M finished.");
+  msg ("Thread M finished.");       //5
 }
 
 static void
@@ -74,9 +74,9 @@ h_thread_func (void *ls_)
   struct lock_and_sema *ls = ls_;
 
   lock_acquire (&ls->lock);
-  msg ("Thread H acquired lock.");
+  msg ("Thread H acquired lock.");  //3
 
   sema_up (&ls->sema);
   lock_release (&ls->lock);
-  msg ("Thread H finished.");
+  msg ("Thread H finished.");       //4
 }

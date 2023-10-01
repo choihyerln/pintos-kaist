@@ -1,4 +1,4 @@
-/* 이 파일은 나초스(Nachos) 교육용 운영 체제의 소스 코드를 기반으로 하였습니다. 나초스의 저작권 고지가 아래에 완전히 재현되어 있습니다. */
+	/* 이 파일은 나초스(Nachos) 교육용 운영 체제의 소스 코드를 기반으로 하였습니다. 나초스의 저작권 고지가 아래에 완전히 재현되어 있습니다. */
 
 /* 저작권 (c) 1992-1996 캘리포니아 대학 교수회. 모든 권리 보유.
 
@@ -42,17 +42,18 @@ sema_init (struct semaphore *sema, unsigned value) {
    인터럽트가 비활성화된 상태에서 호출할 수 있지만, 슬립하는 경우
    스케줄된 스레드가 아마도 인터럽트를 다시 활성화할 것이다. */
 void
-sema_down (struct semaphore *sema) {
+ sema_down (struct semaphore *sema) {
 	enum intr_level old_level;
 	struct thread *run_curr = thread_current();
 
 	ASSERT (sema != NULL);
 	ASSERT (!intr_context ());
 
-	old_level = intr_disable ();	// 인터럽트 비활성화
+	old_level = intr_disable ();	// 인터럽트 비활성화  
 	while (sema->value == 0) {
 		list_insert_ordered(&sema->waiters, &(run_curr->elem), compare_priority, NULL);
-		// list_push_back (&sema->waiters, &thread_current ()->elem);
+		// list_insert_ordered(&run_curr->dlist, &(run_curr->delem), compare_priority, NULL);
+		// list_push_back (&sema->waiters, &run_curr->elem);
 		thread_block ();	// 세마 = 0일 때, 요청 들어오면 세마리스트에 추가 후 block 처리
 	}
 	sema->value--;			// sema = 1일 때
@@ -90,14 +91,18 @@ sema_try_down (struct semaphore *sema) {
 void
 sema_up (struct semaphore *sema) {
 	enum intr_level old_level;
+	// struct thread *run_curr = thread_current();
 
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))	// waiters에 들어있을 때
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));	// unblock처리 -> ready list로 옮겨줌
+	if (!list_empty (&sema->waiters)){	// waiters에 들어있을 때
+		list_sort(&sema->waiters, compare_priority, NULL);
+		thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
+		// list_pop_front(&run_curr->dlist);
+	c}
 	sema->value++;	// sema 값 증가
+	thread_yield();
 	intr_set_level (old_level);
 }
 
@@ -154,6 +159,54 @@ lock_init (struct lock *lock) {
 	sema_init (&lock->semaphore, 1);
 }
 
+void donate_priority(void){
+	// int depth = 8;
+	// struct thread *curr = thread_current();
+	// for(int i = 0; i<depth; i++){
+	// 	if(curr->want_lock){
+	// 		struct thread *holder_thread = curr->want_lock->holder;
+	// 		holder_thread -> priority = curr -> priority;
+	// 		curr = holder_thread;
+	// 	}
+	// }
+	struct thread *curr = thread_current();
+
+		while (curr->want_lock){
+			struct thread *holder = curr->want_lock->holder;
+			holder->priority = curr->priority;
+			curr=holder;
+		}
+	}
+
+
+void
+remove_with_lock(struct lock* lock){
+	struct thread* holder_lock = lock->holder;
+	for (struct list_elem *e = list_begin(&(holder_lock->donation_list)); e != list_end(&(holder_lock->donation_list)); e = list_next(e)){
+		struct thread* target = list_entry(e, struct thread, d_elem);
+		if (target->want_lock == lock){
+			list_remove(e);
+		}
+	}
+}
+
+void
+refresh_priority(void){
+	struct thread *curr = thread_current();
+
+	// printf("여기인가?\n");
+	curr->priority = curr->origin_priority;
+	if (!list_empty(&(curr->donation_list))){
+		// printf("아니면 여기?\n");
+		list_sort(&curr->donation_list, compare_dpriority, NULL);
+		struct list_elem *tmp = list_front(&(curr->donation_list));
+		struct thread *target = list_entry(tmp,struct thread, d_elem);
+		if (target->priority > curr->priority)
+		curr->priority = target->priority;
+	}
+	
+}
+
 /* LOCK 요청
  * lock을 획득하거나, 누군가 lock을 보유하고 있다면 사용 가능해질 때까지 대기
  * 현재 스레드가 LOCK을 이미 보유하고 있으면 안 됩니다.
@@ -166,11 +219,15 @@ lock_acquire (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
+
 	// lock을 요청한 스레드의 우선순위가 현재 lock->holder의 우선순위보다 클 때
-	if (lock->holder && lock->holder->donate_priority < curr->priority) {
-		lock->holder->priority = curr->priority;
+	if (lock->holder){
+		curr->want_lock = lock;
+		list_insert_ordered(&lock->holder->donation_list,&curr->d_elem,compare_dpriority,NULL);
+		donate_priority();
 	}
 	sema_down (&lock->semaphore);
+	curr->want_lock = NULL;
 	lock->holder = curr;
 }
 
@@ -195,13 +252,16 @@ lock_try_acquire (struct lock *lock) {
  * 인터럽트 핸들러 내에서 LOCK을 해제하는 것은 의미가 없습니다. */
 void
 lock_release (struct lock *lock) {
+	struct thread *curr = thread_current();
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
 
-	lock->holder->priority = lock->holder->donate_priority;		// 기부한거 회수
+	remove_with_lock(lock);
+	refresh_priority();
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
-	thread_yield();		// sema_up에서 unblock일어나므로 양보 작업 해줘야 함
+	// 여기에 if문을 넣어야 하지 않을까?, 예를 들어 현재 스레드보다 교체할 스레드가 더 작을때라고
+	// printf("바뀐 돌아가는 thread: %s\n",thread_current()->name);
 }
 
 /* 현재 스레드가 LOCK을 보유하고 있는 경우 true를 반환하고, 그렇지 않으면 false를 반환

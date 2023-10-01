@@ -92,9 +92,14 @@ struct thread {
 	int priority;                       /* Priority. */
 
 	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;              /* List element. */
+	struct list donation_list;					/* donate 리스트*/
+	struct list_elem d_elem;
+	struct list_elem elem;				/* 정보없는 리스트 요소*/
 	int64_t end_tick;					/* End tick */
-	int donate_priority;				/* 기부받은 priority */
+	int origin_priority;				/* 기부받은 priority */
+	struct lock *want_lock;
+
+
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -127,6 +132,7 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 void thread_block (void);
 void thread_unblock (struct thread *);
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+bool compare_dpriority(struct list_elem *me, struct list_elem *you, void *aux);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);

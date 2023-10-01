@@ -1,7 +1,10 @@
 {
     "files.associations": {
+        "*.py": "python",
         "inttypes.h": "c",
-        "thread.h": "c"
+        "thread.h": "c",
+        "interrupt.h": "c",
+        "synch.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -46,17 +46,17 @@ test_priority_donate_nest (void)
   thread_create ("medium", PRI_DEFAULT + 1, medium_thread_func, &locks);
   thread_yield ();
   msg ("Low thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 1, thread_get_priority ());
+       PRI_DEFAULT + 1, thread_get_priority ());                      //1
 
   thread_create ("high", PRI_DEFAULT + 2, high_thread_func, &b);
   thread_yield ();
   msg ("Low thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 2, thread_get_priority ());
+       PRI_DEFAULT + 2, thread_get_priority ());                      //2
 
   lock_release (&a);
   thread_yield ();
-  msg ("Medium thread should just have finished.");
-  msg ("Low thread should have priority %d.  Actual priority: %d.",
+  msg ("Medium thread should just have finished.");                   //9
+  msg ("Low thread should have priority %d.  Actual priority: %d.",   //10
        PRI_DEFAULT, thread_get_priority ());
 }
 
@@ -69,8 +69,8 @@ medium_thread_func (void *locks_)
   lock_acquire (locks->a);
 
   msg ("Medium thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 2, thread_get_priority ());
-  msg ("Medium thread got the lock.");
+       PRI_DEFAULT + 2, thread_get_priority ());                //3
+  msg ("Medium thread got the lock.");                          //4
 
   lock_release (locks->a);
   thread_yield ();
@@ -78,8 +78,8 @@ medium_thread_func (void *locks_)
   lock_release (locks->b);
   thread_yield ();
 
-  msg ("High thread should have just finished.");
-  msg ("Middle thread finished.");
+  msg ("High thread should have just finished.");               //7
+  msg ("Middle thread finished.");                              //8
 }
 
 static void
@@ -88,7 +88,7 @@ high_thread_func (void *lock_)
   struct lock *lock = lock_;
 
   lock_acquire (lock);
-  msg ("High thread got the lock.");
+  msg ("High thread got the lock.");                            //5
   lock_release (lock);
-  msg ("High thread finished.");
+  msg ("High thread finished.");                                //6
 }
