@@ -116,7 +116,7 @@ thread_init (void) {
 	list_init (&ready_list);
 	list_init (&sleep_list);
 	list_init (&destruction_req);
-
+	
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -217,20 +217,11 @@ thread_create (const char *name, int priority,
 /* sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..! */
 bool
 compare_ticks(struct list_elem *me, struct list_elem *you, void *aux) {
-	/* list entry :  */
 	// me/you 라는 elem 을 이용해 해당 스레드의 시작점을 알기 위해 list entry 사용 (return struct thread *)
 	struct thread *me_t = list_entry(me, struct thread, elem);
 	struct thread *you_t = list_entry(you, struct thread, elem);
 	// me_t가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
 	return me_t->end_tick < you_t->end_tick;
-}
-
-/* donate 시 우선순위 비교 (숫자 클수록 우선순위 높음) */
-bool
-donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
-	struct thread *lock_holder = list_entry(me, struct thread, elem);
-	struct thread *lock_requester = list_entry(you, struct thread, elem);
-	return lock_holder->donate_priority > lock_requester->priority;
 }
 
 /* 우선순위 비교 (숫자 클수록 우선순위 높음) */
@@ -239,6 +230,56 @@ compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	struct thread *lock_holder = list_entry(me, struct thread, elem);
 	struct thread *lock_requester = list_entry(you, struct thread, elem);
 	return lock_holder->priority > lock_requester->priority;
+}
+
+/* donate 시 우선순위 비교 (숫자 클수록 우선순위 높음) */
+bool
+donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
+	struct thread *lock_holder = list_entry(me, struct thread, d_elem);
+	struct thread *lock_requester = list_entry(you, struct thread, d_elem);
+	return lock_holder->priority > lock_requester->priority;
+}
+
+/* 자신의 priority를 lock holder에게 donation 해주는 함수 */
+void
+donation_priority(void) {
+	int depth;
+	struct thread *curr = thread_current();
+
+	while (curr->want_lock) {
+		struct thread *holder = curr->want_lock->holder;	// curr가 요청한 락의 홀더
+		holder->priority = curr->priority;	// donation, curr는 실행중이므로 이미 홀더보다 우선순위 높음
+		curr = holder;
+	}
+}
+
+/* donation_list에서 스레드 지우는 함수 */
+void
+remove_thread_in_donation_list (struct lock *lock) {
+	struct semaphore *sema;
+	struct list_elem *delem;
+
+	for (delem=list_begin(&lock->holder->donation_list);
+		delem!=list_end(&lock->holder->donation_list); delem=list_next(delem)) {
+			struct thread *remove_t = list_entry(delem, struct thread, d_elem);	// 삭제할 스레드
+			if (remove_t->want_lock == lock)
+				list_remove(delem);
+	}
+}
+
+/* priority 재설정하는 함수 */
+void
+reset_priority(void) {
+	struct thread *curr = thread_current();
+
+	curr->priority = curr->origin_priority;
+
+	if (!list_empty(&curr->donation_list)) {
+		list_sort(&curr->donation_list, donate_compare_priority, NULL);
+		struct thread *max_thread = list_entry(list_front(&curr->donation_list), struct thread, d_elem);
+		if (max_thread->priority > curr->priority)
+			curr->priority = max_thread->priority;
+	}
 }
 
 void
@@ -300,7 +341,7 @@ thread_unblock (struct thread *t) {
 	ASSERT (t->status == THREAD_BLOCKED);
 
 	// ready_list에 넣을 때, list_insert_ordered 사용하기
-	list_insert_ordered(&ready_list, &(t->elem), donate_compare_priority, NULL);
+	list_insert_ordered(&ready_list, &(t->elem), compare_priority, NULL);
 	// list_push_back (&ready_list, &(t->elem));
 
 	t->status = THREAD_READY;
@@ -378,14 +419,15 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	struct thread *curr = thread_current();
-	curr->priority = new_priority;
+	curr->origin_priority = new_priority;
+	reset_priority();
 	thread_yield();
 }
 
 /* 현재 스레드의 우선순위 반환 */
 int
 thread_get_priority (void) {
-	return thread_current ()->donate_priority;
+	return thread_current ()->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -476,7 +518,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
-	t->donate_priority = priority;
+	t->origin_priority = priority;
+	list_init(&t->donation_list);	// donation_list init
+	t->want_lock = NULL;			// want_lock init
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
