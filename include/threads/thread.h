@@ -85,18 +85,19 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
+
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
-
-	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;              /* List element. */
+	int orgin_priority;
+	struct list_elem elem;              /* List element. : ready list 가 init 될 때 사용되는 elem */
 	int64_t end_tick;					/* End tick */
-	int donated_max;				/* Donated Priority */
-	//struct list_elem  donated_max;
+	struct lock *want_lock;
+	struct list donators;				/* Donated Priority */
+	struct list_elem d_elem;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -147,4 +148,6 @@ int thread_get_load_avg (void);
 void do_iret (struct intr_frame *tf);
 
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+bool compare_donator_priority(struct list_elem *trier_blk, struct list_elem *list_blk, void *aux);
+
 #endif /* threads/thread.h */

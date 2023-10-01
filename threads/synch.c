@@ -34,7 +34,7 @@ sema_init (struct semaphore *sema, unsigned value) {
 	sema->value = value;
 	list_init (&sema->waiters);		// 세마리스트 초기화
 }
-// 하이
+
 /* 세마포어에 대한 Down or "P" 연산
    SEMA의 값이 양수가 될 때까지 기다린 다음 값을 원자적으로 감소시킴
 
@@ -51,7 +51,7 @@ sema_down (struct semaphore *sema) {
 	old_level = intr_disable ();	// 인터럽트 비활성화
 
 	while (sema->value == 0) {
-		list_insert_ordered(&sema->waiters, &(curr->elem), compare_priority, NULL);
+		list_back(&sema->waiters);
 		thread_block ();	// 세마리스트에 들어가면 block 처리
 	}
 	sema->value--;			// 세마리스트 들어갔으니까 down 처리
@@ -94,9 +94,9 @@ sema_up (struct semaphore *sema) {
 
 	old_level = intr_disable ();
 	if (!list_empty (&sema->waiters))
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
+		thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
 	sema->value++;
+	thread_yield();
 	intr_set_level (old_level);
 }
 
@@ -152,7 +152,25 @@ lock_init (struct lock *lock) {
 	lock->holder = NULL;
 	sema_init (&lock->semaphore, 1);
 }
+bool
+compare_donator_priority (struct list_elem *curr_elem, struct list_elem *next_elem, void *aux){
+	struct thread *curr = list_entry(curr_elem, struct thread, d_elem);
+	struct thread *next = list_entry(next_elem, struct thread, d_elem);
 
+	return curr->priority > next->priority;
+}
+/* 스레드의 priority 를 MAX 로 업데이트 (MAX = 현재 실행 중인 스레드)
+*/
+void
+update_priority(){
+	struct thread *curr = thread_current();
+
+	while(curr->want_lock){
+		struct thread *holder = curr->want_lock->holder;
+		holder->priority = curr->priority;
+		curr = holder;	
+	}
+}
 
 /* LOCK을 획득하고, 필요한 경우 사용 가능해질 때까지 대기합니다.
  * 현재 스레드가 LOCK을 이미 보유하고 있으면 안 됩니다.
@@ -161,19 +179,24 @@ lock_init (struct lock *lock) {
  * 대기가 필요한 경우 인터럽트가 다시 활성화됩니다. */
 void
 lock_acquire (struct lock *lock) {
-	struct thread *trier = thread_current ();
+	/* running 중인 스레드 =  이전 create 된 스레드들의 우선순위가 높다는 의미 */
+	struct thread *curr = thread_current ();
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
-	
+
+	/* lock 에 holder 가 있을 때, want_lock 을 설정 */
 	if(lock->holder){
-		if(lock->holder->donated_max < trier->priority){
-			lock->holder->donated_max = trier->priority;
-		}
+		curr->want_lock = lock;
+		list_push_back(&lock->holder->donators, &curr->d_elem);
+		// list_insert_ordered(&lock->holder->donators, &curr->d_elem, compare_donator_priority, NULL);	
+		update_priority();
 	}
 	sema_down (&lock->semaphore);
-	lock->holder = trier;
+	lock->holder = curr;
 }
+
+
 
 /* LOCK을 획득을 시도하고, 성공한 경우에는 true를 반환하며 실패한 경우에는 false를 반환
  * 현재 스레드가 LOCK을 이미 보유하고 있으면 안 됩니다.
@@ -191,6 +214,30 @@ lock_try_acquire (struct lock *lock) {
 	return success;
 }
 
+void
+donator_remove(struct lock *lock){
+	for (struct list_elem *e = list_begin (&lock->holder->donators); e != list_end (&lock->holder->donators); e = list_next (e)){
+
+		struct thread *d_t = list_entry(e, struct thread, d_elem);
+		if(d_t->want_lock == lock){
+			list_remove(&d_t->d_elem);
+			// break (X) -> 
+		}
+	}
+}
+void
+priority_refresh(struct thread* holder)
+{
+	if(!list_empty(&holder->donators)){
+		struct list_elem *d_e = list_front(&holder->donators);
+		struct thread *max_donator = list_entry(d_e, struct thread, d_elem);
+		if(holder->orgin_priority < max_donator->priority){
+			holder->priority =  max_donator->priority;
+		}
+	}else{
+		holder->priority = holder->orgin_priority;
+	}
+}
 /* 현재 스레드가 소유한 LOCK을 해제합니다.
  * 인터럽트 핸들러는 LOCK을 획득할 수 없으므로
  * 인터럽트 핸들러 내에서 LOCK을 해제하는 것은 의미가 없습니다. */
@@ -199,10 +246,10 @@ lock_release (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
 
-	lock->holder->donated_max = lock->holder->priority;
+	donator_remove(lock);
+	priority_refresh(lock->holder);
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
-	holder_yield();
 }
 
 /* 현재 스레드가 LOCK을 보유하고 있는 경우 true를 반환하고, 그렇지 않으면 false를 반환
