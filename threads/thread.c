@@ -248,6 +248,7 @@ donation_priority(void) {
 
 	while (curr->want_lock) {
 		struct thread *holder = curr->want_lock->holder;	// curr가 요청한 락의 홀더
+		// holder->priority = list_entry(list_max(&holder->donation_list, donate_compare_priority, 0), struct thread, d_elem)->priority; -> 왜 안돼?....
 		holder->priority = curr->priority;	// donation, curr는 실행중이므로 이미 홀더보다 우선순위 높음
 		curr = holder;
 	}
@@ -290,9 +291,7 @@ thread_wake(int64_t now_ticks) {
         struct thread *sleep_thread = list_entry(front_elem, struct thread, elem);
 		// 현재 시각이 일어날 시간을 지났으면 -> 일어나!!
         if (now_ticks >= sleep_thread->end_tick) { 
-			// list_sort(&sleep_list, compare_ticks, NULL);
-			// list_pop_front(&sleep_list);
-            front_elem = list_remove(front_elem);
+            front_elem = list_remove(front_elem); 
             thread_unblock(sleep_thread);
         }
         else {

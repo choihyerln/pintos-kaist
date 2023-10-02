@@ -166,7 +166,6 @@ lock_init (struct lock *lock) {
 void
 lock_acquire (struct lock *lock) {
 	struct thread *curr = thread_current();
-	// printf("%d\n", curr->priority);
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
@@ -176,8 +175,6 @@ lock_acquire (struct lock *lock) {
 		/* lock->holder->donate_priority < curr->priority
 			curr가 실행되고 있다는 자체로 lock holder보다
 			우선순위가 높다는 뜻이기 때문에 이 조건은 없어도 됨 */
-		// list_insert_ordered(&lock->holder->donation_list,
-		// 		&curr->d_elem, donate_compare_priority, NULL);
 		list_push_back(&lock->holder->donation_list, &curr->d_elem);
 		donation_priority();
 	}
