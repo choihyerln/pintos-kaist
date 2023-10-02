@@ -34,7 +34,6 @@ sema_init (struct semaphore *sema, unsigned value) {
 	sema->value = value;
 	list_init (&sema->waiters);		// 세마리스트 초기화
 }
-// 하이
 /* 세마포어에 대한 Down or "P" 연산
    SEMA의 값이 양수가 될 때까지 기다린 다음 값을 원자적으로 감소시킴
 
@@ -100,7 +99,7 @@ sema_up (struct semaphore *sema) {
 		list_sort(&sema->waiters, compare_priority, NULL);
 		thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
 		// list_pop_front(&run_curr->dlist);
-	c}
+	}
 	sema->value++;	// sema 값 증가
 	thread_yield();
 	intr_set_level (old_level);
