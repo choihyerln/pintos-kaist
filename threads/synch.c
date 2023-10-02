@@ -51,7 +51,7 @@ sema_down (struct semaphore *sema) {
 	old_level = intr_disable ();	// 인터럽트 비활성화
 
 	while (sema->value == 0) {
-		list_back(&sema->waiters);
+		list_push_back(&sema->waiters, &curr->elem);
 		thread_block ();	// 세마리스트에 들어가면 block 처리
 	}
 	sema->value--;			// 세마리스트 들어갔으니까 down 처리
@@ -93,8 +93,10 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
+	if (!list_empty (&sema->waiters)){
+		list_sort(&sema->waiters, compare_priority, NULL);
 		thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
+	}
 	sema->value++;
 	thread_yield();
 	intr_set_level (old_level);
@@ -189,7 +191,6 @@ lock_acquire (struct lock *lock) {
 	if(lock->holder){
 		curr->want_lock = lock;
 		list_push_back(&lock->holder->donators, &curr->d_elem);
-		// list_insert_ordered(&lock->holder->donators, &curr->d_elem, compare_donator_priority, NULL);	
 		update_priority();
 	}
 	sema_down (&lock->semaphore);
@@ -229,8 +230,10 @@ void
 priority_refresh(struct thread* holder)
 {
 	if(!list_empty(&holder->donators)){
+		list_sort(&holder->donators, compare_donator_priority, NULL);
 		struct list_elem *d_e = list_front(&holder->donators);
 		struct thread *max_donator = list_entry(d_e, struct thread, d_elem);
+
 		if(holder->orgin_priority < max_donator->priority){
 			holder->priority =  max_donator->priority;
 		}
@@ -301,7 +304,6 @@ cond_wait (struct condition *cond, struct lock *lock) {
 
 	sema_init (&waiter.semaphore, 0);
 	list_push_back (&cond->waiters, &waiter.elem);
-	// list_insert_ordered(&cond->waiters, &waiter.elem, compare_priority, NULL);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
@@ -321,9 +323,9 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	if (!list_empty (&cond->waiters))
-		sema_up (&list_entry (list_pop_front (&cond->waiters),
-					struct semaphore_elem, elem)->semaphore);
-}
+			sema_up (&list_entry (list_pop_front (&cond->waiters),
+						struct semaphore_elem, elem)->semaphore);
+	}
 
 /* 만약 어떤 스레드가 LOCK에 의해 보호되는 COND에서 기다리고 있다면,
    이 함수는 모든 스레드에게 신호를 보내 대기 상태에서 깨어나도록 합니다. 
