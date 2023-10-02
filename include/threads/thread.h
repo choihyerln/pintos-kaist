@@ -94,12 +94,11 @@ struct thread {
 	int origin_priority;				/* 기존 priority */
 
 	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
 	int64_t end_tick;					/* End tick: alarm 할 때 쓴 거 */
 	struct list donation_list;			/* 나한테 기부해준 스레드 담을 리스트 */
-	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
-	// int donate_priority;				/* 기부받은 priority: donate_one 할 때 쓴 거*/
+	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
+	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
 	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -129,6 +128,8 @@ void thread_print_stats (void);
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
+void thread_sleep(int64_t wake_time);
+void thread_wake(int64_t now_ticks);
 void thread_block (void);
 void thread_unblock (struct thread *);
 bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);

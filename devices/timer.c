@@ -88,7 +88,7 @@ int64_t
 timer_elapsed (int64_t then) {
 	return timer_ticks () - then;	// start로부터 흐른 시간 반환
 }
-// 하이
+
 /* TICKS 타이머 틱 동안 실행을 일시 중단 */
 void
 timer_sleep (int64_t ticks) {

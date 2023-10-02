@@ -284,11 +284,11 @@ reset_priority(void) {
 
 void
 thread_wake(int64_t now_ticks) {
-	if(!list_empty(&sleep_list)) {
+	if (!list_empty(&sleep_list)) {
 		struct list_elem *front_elem = list_front(&sleep_list);
 		struct thread *sleep_front = list_entry(front_elem, struct thread, elem);
 
-		if(now_ticks >= sleep_front->end_tick) {	// 깨워야 할 시간이 지나면
+		if (now_ticks >= sleep_front->end_tick) {	// 깨워야 할 시간이 지나면
 			list_pop_front(&sleep_list);			// sleep 리스트에서 빼주고
 			thread_unblock(sleep_front);			// unblock 시켜줌
 		}

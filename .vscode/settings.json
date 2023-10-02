@@ -9,7 +9,8 @@
         "tuple": "c",
         "type_traits": "c",
         "utility": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "tests.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
