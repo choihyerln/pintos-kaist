@@ -19,6 +19,25 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+bool
+compare_cond_priority(struct list_elem *a_e, struct list_elem *b_e, void *aux) {
+	struct semaphore_elem *sema_a = list_entry(a_e, struct semaphore_elem, elem);
+	struct semaphore_elem *sema_b = list_entry(b_e, struct semaphore_elem, elem);
+	
+	struct thread *thread_a = list_entry(list_begin(&sema_a->semaphore.waiters), struct thread, elem);
+	struct thread *thread_b = list_entry(list_begin(&sema_b->semaphore.waiters), struct thread, elem);
+
+	return thread_a->priority > thread_b->priority;	// true
+}
+
+bool
+compare_donator_priority (struct list_elem *curr_elem, struct list_elem *next_elem, void *aux){
+	struct thread *curr = list_entry(curr_elem, struct thread, d_elem);
+	struct thread *next = list_entry(next_elem, struct thread, d_elem);
+
+	return curr->priority > next->priority;
+}
+
 /* 세마포어 SEMA를 VALUE로 초기화
    세마포어는 음수가 아닌 정수와 그 값을 조작하는
    두 가지 원자적(atomic) 연산을 포함한다.
@@ -154,13 +173,7 @@ lock_init (struct lock *lock) {
 	lock->holder = NULL;
 	sema_init (&lock->semaphore, 1);
 }
-bool
-compare_donator_priority (struct list_elem *curr_elem, struct list_elem *next_elem, void *aux){
-	struct thread *curr = list_entry(curr_elem, struct thread, d_elem);
-	struct thread *next = list_entry(next_elem, struct thread, d_elem);
 
-	return curr->priority > next->priority;
-}
 /* 스레드의 priority 를 MAX 로 업데이트 (MAX = 현재 실행 중인 스레드)
 */
 void
@@ -222,7 +235,7 @@ donator_remove(struct lock *lock){
 		struct thread *d_t = list_entry(e, struct thread, d_elem);
 		if(d_t->want_lock == lock){
 			list_remove(&d_t->d_elem);
-			// break (X) -> 
+			// break (X)
 		}
 	}
 }
@@ -322,10 +335,12 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (!intr_context ());
 	ASSERT (lock_held_by_current_thread (lock));
 
-	if (!list_empty (&cond->waiters))
+	if (!list_empty (&cond->waiters)){
+		list_sort(&cond->waiters, compare_cond_priority, NULL);
 			sema_up (&list_entry (list_pop_front (&cond->waiters),
 						struct semaphore_elem, elem)->semaphore);
 	}
+}
 
 /* 만약 어떤 스레드가 LOCK에 의해 보호되는 COND에서 기다리고 있다면,
    이 함수는 모든 스레드에게 신호를 보내 대기 상태에서 깨어나도록 합니다. 

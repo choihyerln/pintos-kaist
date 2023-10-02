@@ -69,6 +69,23 @@ void thread_wake(int64_t now_ticks);
 
 static tid_t allocate_tid (void);
 
+bool
+compare_ticks(struct list_elem *runner, struct list_elem *sleeper, void *aux) {
+	// me/you 라는 elem 을 이용해 해당 스레드의 시작점을 알기 위해 list entry 사용 (return struct thread *)
+	struct thread *curr = list_entry(runner, struct thread, elem);
+	struct thread *sleeper_t = list_entry(sleeper, struct thread, elem);
+	// me_t가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
+	return curr->end_tick < sleeper_t->end_tick;	// true
+}
+
+bool
+compare_priority(struct list_elem *curr_elem, struct list_elem *next_elem, void *aux) {
+	struct thread *curr = list_entry(curr_elem, struct thread, elem);
+	struct thread *next = list_entry(next_elem, struct thread, elem);
+
+	return curr->priority > next->priority;	// true
+}
+
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -216,14 +233,6 @@ thread_create (const char *name, int priority,
 /*
 	sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..!
 */
-bool
-compare_ticks(struct list_elem *runner, struct list_elem *sleeper, void *aux) {
-	// me/you 라는 elem 을 이용해 해당 스레드의 시작점을 알기 위해 list entry 사용 (return struct thread *)
-	struct thread *curr = list_entry(runner, struct thread, elem);
-	struct thread *sleeper_t = list_entry(sleeper, struct thread, elem);
-	// me_t가 더 작아야지 우선순위가 높기 때문에, list_insert_ordered 함수에서 ture를 반환
-	return curr->end_tick < sleeper_t->end_tick;	// true
-}
 
 void
 thread_wake(int64_t now_ticks) {
@@ -267,14 +276,6 @@ thread_block (void) {
 	schedule ();
 }
 
-
-bool
-compare_priority(struct list_elem *curr_elem, struct list_elem *next_elem, void *aux) {
-	struct thread *curr = list_entry(curr_elem, struct thread, elem);
-	struct thread *next = list_entry(next_elem, struct thread, elem);
-
-	return curr->priority > next->priority;	// true
-}
 
 /* 차단된 스레드 T를 실행 대기 상태로 전환
 T가 차단되지 않은 경우에는 오류이다.
@@ -367,13 +368,10 @@ thread_yield (void) {
    현재 스레드의 우선순위를 설정하고 ready_list 정렬 */
 void
 thread_set_priority (int new_priority) {
-	struct thread *curr = thread_current();
-	
+	struct thread *curr = thread_current();	
 	curr->orgin_priority = new_priority;
 	priority_refresh(curr);
-	// if(new_priority > curr->priority){
-	// 	curr->priority = new_priority;
-	// }
+
 	thread_yield();
 }
 
