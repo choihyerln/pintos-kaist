@@ -284,15 +284,21 @@ reset_priority(void) {
 
 void
 thread_wake(int64_t now_ticks) {
-	if (!list_empty(&sleep_list)) {
-		struct list_elem *front_elem = list_front(&sleep_list);
-		struct thread *sleep_front = list_entry(front_elem, struct thread, elem);
+    struct list_elem *front_elem = list_begin(&sleep_list);
 
-		if (now_ticks >= sleep_front->end_tick) {	// 깨워야 할 시간이 지나면
-			list_pop_front(&sleep_list);			// sleep 리스트에서 빼주고
-			thread_unblock(sleep_front);			// unblock 시켜줌
-		}
-	}
+    while (front_elem != list_end(&sleep_list)) {
+        struct thread *sleep_thread = list_entry(front_elem, struct thread, elem);
+		// 현재 시각이 일어날 시간을 지났으면 -> 일어나!!
+        if (now_ticks >= sleep_thread->end_tick) { 
+			// list_sort(&sleep_list, compare_ticks, NULL);
+			// list_pop_front(&sleep_list);
+            front_elem = list_remove(front_elem);
+            thread_unblock(sleep_thread);
+        }
+        else {
+            front_elem = list_next(front_elem);
+        }
+    }
 }
 
 void
@@ -302,10 +308,9 @@ thread_sleep(int64_t wake_time) {
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
 
 	struct thread *curr = thread_current();
-	curr->status = THREAD_BLOCKED;	// block하는 구조체 블락 상태로 만들어줌
 	curr->end_tick = wake_time;		// block하는 구조체 깨울 시간 저장
 	list_insert_ordered(&sleep_list, &(curr->elem), compare_ticks, NULL);	// sleep 리스트에 삽입정렬
-	schedule ();					// 스케줄링
+	thread_block ();				// block하고 스케줄링
 	intr_set_level(old_level);		// 인터럽트 다시 활성화
 }
 
