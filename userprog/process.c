@@ -383,9 +383,8 @@ load (const char *file_name, struct intr_frame *if_) {
 						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
 								- read_bytes);
 					} else {
-
-						/* 전부 0으로 초기화되어 있음.
-						   디스크에서 아무것도 읽지 않음. */
+						/* Entirely zero.
+						 * Don't read anything from disk. */
 						read_bytes = 0;
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
