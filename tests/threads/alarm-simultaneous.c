@@ -37,7 +37,7 @@ test_sleep (int thread_cnt, int iterations)
   int i;
 
   /* This test does not work with the MLFQS. */
-  ASSERT (!thread_mlfqs);
+  ASSERT (!thread_mlfqs) 
 
   msg ("Creating %d threads to sleep %d times each.", thread_cnt, iterations);
   msg ("Each thread sleeps 10 ticks each time.");
@@ -83,7 +83,6 @@ sleeper (void *test_)
 
   /* Make sure we're at the beginning of a timer tick. */
   timer_sleep (1);
-
   for (i = 1; i <= test->iterations; i++) 
     {
       int64_t sleep_until = test->start + i * 10;

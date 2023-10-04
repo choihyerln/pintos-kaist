@@ -93,10 +93,12 @@ timer_elapsed (int64_t then) {
 void
 timer_sleep (int64_t ticks) {
 	int64_t wake_time = ticks + timer_ticks();
-	
+	// printf("자야하는 시간: %d\n", ticks);
+	// printf("현재시간:%d\n",timer_ticks());
 	ASSERT (intr_get_level () == INTR_ON);
 
 	thread_sleep(wake_time);
+
 	// 원본 (수정 전 - busy wait 방식)
 	/*
 	while (timer_elapsed (start) < ticks)
@@ -131,9 +133,9 @@ timer_print_stats (void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
-	ticks++;	// 시간을 증가시켜 줌
+	ticks++;
 	thread_tick ();
-	thread_wake(ticks);	// interrupt에서 매 순간 ticks가 증가하므로 깨울 tick이 되면 깨운다
+	thread_wake ();	// interrupt에서 매 순간 ticks가 증가하므로 깨울 tick이 되면 깨운다
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

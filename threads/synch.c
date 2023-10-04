@@ -174,6 +174,7 @@ void donate_priority(void){
 			struct thread *holder = curr->want_lock->holder;
 			holder->priority = curr->priority;
 			curr=holder;
+			
 		}
 	}
 
@@ -259,8 +260,6 @@ lock_release (struct lock *lock) {
 	refresh_priority();
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
-	// 여기에 if문을 넣어야 하지 않을까?, 예를 들어 현재 스레드보다 교체할 스레드가 더 작을때라고
-	// printf("바뀐 돌아가는 thread: %s\n",thread_current()->name);
 }
 
 /* 현재 스레드가 LOCK을 보유하고 있는 경우 true를 반환하고, 그렇지 않으면 false를 반환
@@ -287,6 +286,17 @@ cond_init (struct condition *cond) {
 	ASSERT (cond != NULL);
 
 	list_init (&cond->waiters);
+}
+
+/* 우선순위 비교 (숫자 클수록 우선순위 높음) */
+bool
+compare_cpriority(struct list_elem *a, struct list_elem *b, void *aux) {
+	struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
+	struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
+
+	struct thread* thread_a = list_entry(list_begin(&sema_a->semaphore.waiters),struct thread, elem);
+	struct thread* thread_b = list_entry(list_begin(&sema_b->semaphore.waiters),struct thread, elem);
+	return thread_a->priority > thread_b->priority;
 }
 
 /* 이 함수는 LOCK을 원자적으로 해제하고 다른 코드에 의해 COND가 신호를 받을 때까지 기다린 다음, 
@@ -332,6 +342,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	if (!list_empty (&cond->waiters))
+		list_sort(&cond->waiters,compare_cpriority,NULL);
 		sema_up (&list_entry (list_pop_front (&cond->waiters),
 					struct semaphore_elem, elem)->semaphore);
 }

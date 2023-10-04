@@ -133,6 +133,7 @@ void thread_block (void);
 void thread_unblock (struct thread *);
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_dpriority(struct list_elem *me, struct list_elem *you, void *aux);
+bool compare_cpriority(struct list_elem *a, struct list_elem *b, void *aux);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -140,6 +141,8 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+void thread_sleep(int64_t);
+void thread_wake(void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);

@@ -64,6 +64,7 @@ static void do_schedule(int status);
 static void schedule (void);
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);
+bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 
 static tid_t allocate_tid (void);
 
