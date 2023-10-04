@@ -227,15 +227,6 @@ donator_remove(struct lock *lock){
 		}
 	}
 }
-
-bool
-compare_donator_priority (struct list_elem *curr_elem, struct list_elem *next_elem, void *aux){
-	struct thread *curr = list_entry(curr_elem, struct thread, d_elem);
-	struct thread *next = list_entry(next_elem, struct thread, d_elem);
-
-	return curr->priority > next->priority;
-}
-
 void
 priority_refresh(struct thread* holder)
 {

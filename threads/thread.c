@@ -63,6 +63,7 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 void thread_sleep(int64_t wake_time);
+
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);
 void thread_wake(int64_t now_ticks);
