@@ -1,4 +1,4 @@
-cd threads
+cd userprog
 make clean
 make
 cd build
@@ -7,7 +7,7 @@ source ../../activate
 # echo "Running Command 1"
 # 1
 # pintos -- -q run priority-donate-multiple
-pintos -- -q run priority-donate-nest
+pintos -- -q run args-single
 # echo "Running Command 2"
 # 2
 # pintos -- -q run priority-donate-one
