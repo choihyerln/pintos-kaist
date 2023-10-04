@@ -63,6 +63,7 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 void thread_sleep(int64_t wake_time);
+
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);
 void thread_wake(int64_t now_ticks);
@@ -309,6 +310,7 @@ thread_sleep(int64_t wake_time) {
 	struct thread *curr = thread_current();
 	curr->end_tick = wake_time;		// block하는 구조체 깨울 시간 저장
 	list_insert_ordered(&sleep_list, &(curr->elem), compare_ticks, NULL);	// sleep 리스트에 삽입정렬
+
 	thread_block ();				// block하고 스케줄링
 	intr_set_level(old_level);		// 인터럽트 다시 활성화
 }
@@ -324,7 +326,6 @@ thread_block (void) {
 	ASSERT (!intr_context ());		// 인터럽트를 처리하고 있지 않아야 하고,
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
 	thread_current ()->status = THREAD_BLOCKED;
-	//(struct list *, struct list_elem *, list_less_func *, void *aux)
 	schedule ();
 }
 
@@ -345,9 +346,9 @@ thread_unblock (struct thread *t) {
 
 	// ready_list에 넣을 때, list_insert_ordered 사용하기
 	list_insert_ordered(&ready_list, &(t->elem), compare_priority, NULL);
-	// list_push_back (&ready_list, &(t->elem));
 
 	t->status = THREAD_READY;
+
 	intr_set_level (old_level);
 }
 
@@ -409,10 +410,11 @@ thread_yield (void) {
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
+
 	if (curr != idle_thread) {
 		list_insert_ordered(&ready_list, &(curr->elem), compare_priority, NULL);
-		// list_push_back (&ready_list, &curr->elem);
 	}
+
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -421,6 +423,7 @@ thread_yield (void) {
    현재 스레드의 우선순위를 설정하고 ready_list 정렬 */
 void
 thread_set_priority (int new_priority) {
+
 	struct thread *curr = thread_current();
 	curr->origin_priority = new_priority;
 	reset_priority();
@@ -430,7 +433,7 @@ thread_set_priority (int new_priority) {
 /* 현재 스레드의 우선순위 반환 */
 int
 thread_get_priority (void) {
-	return thread_current ()->priority;
+	return thread_current()->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */

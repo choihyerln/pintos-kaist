@@ -19,6 +19,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+
 /* 세마포어 SEMA를 VALUE로 초기화
    세마포어는 음수가 아닌 정수와 그 값을 조작하는
    두 가지 원자적(atomic) 연산을 포함한다.
@@ -48,11 +49,12 @@ sema_down (struct semaphore *sema) {
 
 	ASSERT (sema != NULL);
 	ASSERT (!intr_context ());
-
 	old_level = intr_disable ();	// 인터럽트 비활성화
+
 	while (sema->value == 0) {
 		list_push_back(&sema->waiters, &run_curr->elem);
 		thread_block ();	// 세마 = 0일 때, 요청 들어오면 세마리스트에 추가 후 block 처리
+
 	}
 	sema->value--;			// sema = 1일 때
 	intr_set_level (old_level);		// 인터럽트 상태 반환
@@ -93,6 +95,7 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
+
 	if (!list_empty (&sema->waiters))	{// waiters에 들어있을 때
 		list_sort(&sema->waiters, compare_priority, NULL);
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
@@ -156,6 +159,7 @@ lock_init (struct lock *lock) {
 	sema_init (&lock->semaphore, 1);
 }
 
+
 /* LOCK 요청
  * lock을 획득하거나, 누군가 lock을 보유하고 있다면 사용 가능해질 때까지 대기
  * 현재 스레드가 LOCK을 이미 보유하고 있으면 안 됩니다.
@@ -164,7 +168,9 @@ lock_init (struct lock *lock) {
  * 대기가 필요한 경우 인터럽트가 다시 활성화됩니다. */
 void
 lock_acquire (struct lock *lock) {
+
 	struct thread *curr = thread_current();
+
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
@@ -192,6 +198,8 @@ lock_acquire (struct lock *lock) {
 	}
 }
 
+
+
 /* LOCK을 획득을 시도하고, 성공한 경우에는 true를 반환하며 실패한 경우에는 false를 반환
  * 현재 스레드가 LOCK을 이미 보유하고 있으면 안 됩니다.
  * 이 함수는 대기하지 않으므로 인터럽트 핸들러 내에서 호출될 수 있습니다. */
@@ -208,6 +216,32 @@ lock_try_acquire (struct lock *lock) {
 	return success;
 }
 
+void
+donator_remove(struct lock *lock){
+	for (struct list_elem *e = list_begin (&lock->holder->donators); e != list_end (&lock->holder->donators); e = list_next (e)){
+
+		struct thread *d_t = list_entry(e, struct thread, d_elem);
+		if(d_t->want_lock == lock){
+			list_remove(&d_t->d_elem);
+			// break (X)
+		}
+	}
+}
+void
+priority_refresh(struct thread* holder)
+{
+	if(!list_empty(&holder->donators)){
+		list_sort(&holder->donators, compare_donator_priority, NULL);
+		struct list_elem *d_e = list_front(&holder->donators);
+		struct thread *max_donator = list_entry(d_e, struct thread, d_elem);
+
+		if(holder->orgin_priority < max_donator->priority){
+			holder->priority =  max_donator->priority;
+		}
+	}else{
+		holder->priority = holder->orgin_priority;
+	}
+}
 /* 현재 스레드가 소유한 LOCK을 해제합니다.
  * 인터럽트 핸들러는 LOCK을 획득할 수 없으므로
  * 인터럽트 핸들러 내에서 LOCK을 해제하는 것은 의미가 없습니다.
