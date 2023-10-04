@@ -279,6 +279,7 @@ struct semaphore_elem {
 	struct semaphore semaphore;         /* This semaphore. */
 };
 
+
 /* COND(condition variable) 초기화
   조건 변수는 하나의 코드 조각이 조건을 신호로 보내고,
   협력하는 코드가 그 신호를 받아 처리할 수 있도록 하는데 사용 */
