@@ -311,7 +311,6 @@ thread_sleep(int64_t wake_times) {
 	ASSERT (!intr_context ());					// 인터럽트를 처리하고 있지 않아야 하고,
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
 
-	struct thread *curr = thread_current();
 	curr->end_tick = wake_times;		// block하는 구조체 깨울 시간 저장
 	list_insert_ordered(&sleep_list, &(curr->elem), compare_ticks, NULL);	// sleep 리스트에 삽입정렬
 

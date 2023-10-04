@@ -39,6 +39,7 @@ process_init (void) {
  * 이것은 한 번만 호출되어야 함에 주의하십시오. */
 tid_t
 process_create_initd (const char *file_name) {
+	// 프로그램을 실행 할 프로세스 생성
 	char *fn_copy;
 	tid_t tid;
 
@@ -160,6 +161,7 @@ error:
  * 실패 시 -1을 반환합니다. */
 int
 process_exec (void *f_name) {
+	//start_process, 프로그램을 메모리에 탑재하고 응용 프로그램 실행
 	char *file_name = f_name;
 	bool success;
 

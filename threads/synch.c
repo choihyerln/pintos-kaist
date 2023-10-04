@@ -102,7 +102,13 @@ sema_up (struct semaphore *sema) {
 					struct thread, elem));	// unblock처리 -> ready list로 옮겨줌
 	}
 	sema->value++;	// sema 값 증가
-	thread_yield();		// unblock 일어나므로 양보 작업 해줘야 함
+	#ifdef USERPROG
+        if (thread_current()->pml4 != 0 && !intr_context()) {
+            thread_yield();     // unblock 일어나므로 양보 작업 해줘야 함
+        }
+    #else
+        thread_yield();
+    #endif
 	intr_set_level (old_level); 
 }
 
