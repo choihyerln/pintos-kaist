@@ -34,7 +34,7 @@ sema_init (struct semaphore *sema, unsigned value) {
 	sema->value = value;
 	list_init (&sema->waiters);		// 세마리스트 초기화
 }
-// 하이
+
 /* 세마포어에 대한 Down or "P" 연산
    SEMA의 값이 양수가 될 때까지 기다린 다음 값을 원자적으로 감소시킴
 
@@ -44,16 +44,18 @@ sema_init (struct semaphore *sema, unsigned value) {
 void
 sema_down (struct semaphore *sema) {
 	enum intr_level old_level;
+	struct thread *run_curr = thread_current();
 
 	ASSERT (sema != NULL);
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();	// 인터럽트 비활성화
 	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
-		thread_block ();	// 세마리스트에 들어가면 block 처리
+		list_push_back(&sema->waiters, &run_curr->elem);
+		// list_insert_ordered(&sema->waiters, &run_curr->elem, compare_priority, NULL);
+		thread_block ();	// 세마 = 0일 때, 요청 들어오면 세마리스트에 추가 후 block 처리
 	}
-	sema->value--;			// 세마리스트 들어갔으니까 down 처리
+	sema->value--;			// sema = 1일 때
 	intr_set_level (old_level);		// 인터럽트 상태 반환
 }
 
@@ -92,10 +94,13 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
+	if (!list_empty (&sema->waiters))	{// waiters에 들어있을 때
+		list_sort(&sema->waiters, compare_priority, NULL);
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
-	sema->value++;
+					struct thread, elem));	// unblock처리 -> ready list로 옮겨줌
+	}
+	sema->value++;	// sema 값 증가
+	thread_yield();		// unblock 일어나므로 양보 작업 해줘야 함
 	intr_set_level (old_level);
 }
 
@@ -152,20 +157,32 @@ lock_init (struct lock *lock) {
 	sema_init (&lock->semaphore, 1);
 }
 
-
-/* LOCK을 획득하고, 필요한 경우 사용 가능해질 때까지 대기합니다.
+/* LOCK 요청
+ * lock을 획득하거나, 누군가 lock을 보유하고 있다면 사용 가능해질 때까지 대기
  * 현재 스레드가 LOCK을 이미 보유하고 있으면 안 됩니다.
  * 이 함수는 대기 상태로 들어갈 수 있으므로 인터럽트 핸들러 내에서 호출해서는 안 됩니다.
  * 이 함수는 인터럽트가 비활성화된 상태에서 호출될 수 있지만,
  * 대기가 필요한 경우 인터럽트가 다시 활성화됩니다. */
 void
 lock_acquire (struct lock *lock) {
+	struct thread *curr = thread_current();
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
 
+	if (lock->holder) {
+		curr->want_lock = lock;	// acquire 요청한 스레드의 want_lock 설정
+		/* lock->holder->donate_priority < curr->priority
+			curr가 실행되고 있다는 자체로 lock holder보다
+			우선순위가 높다는 뜻이기 때문에 이 조건은 없어도 됨 */
+		list_push_back(&lock->holder->donation_list, &curr->d_elem);
+		donation_priority();
+	}
+	// sema_down을 기점으로 이전은 lock을 얻기 전, 이후는 lock을 얻은 후
 	sema_down (&lock->semaphore);
-	lock->holder = thread_current ();
+
+	curr->want_lock = NULL;
+	lock->holder = curr;
 }
 
 /* LOCK을 획득을 시도하고, 성공한 경우에는 true를 반환하며 실패한 경우에는 false를 반환
@@ -186,13 +203,22 @@ lock_try_acquire (struct lock *lock) {
 
 /* 현재 스레드가 소유한 LOCK을 해제합니다.
  * 인터럽트 핸들러는 LOCK을 획득할 수 없으므로
- * 인터럽트 핸들러 내에서 LOCK을 해제하는 것은 의미가 없습니다. */
+ * 인터럽트 핸들러 내에서 LOCK을 해제하는 것은 의미가 없습니다.
+ * 스레드가 priority를 양도받아 critical section을 마치고 lock을 반환할 때의 경우 */
 void
 lock_release (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
 
+	remove_thread_in_donation_list(lock);	// 1)
+	reset_priority();						// 2)
+
 	lock->holder = NULL;
+	/* sema_up해서 lock의 점유를 반환하기 전에
+	현재 이 lock을 사용하기 위해 나에게 priority를 빌려준 스레드들을
+	1)donalist에서 제거하고 2)priority를 재설정해주는 작업 필요
+	이 땐 남아있는 donalist에서 가장 높은 priority를 받아서 설정해야함
+	만약 donalist 비어있으면 origin_priority로 설정 */
 	sema_up (&lock->semaphore);
 }
 
@@ -222,6 +248,20 @@ cond_init (struct condition *cond) {
 	list_init (&cond->waiters);
 }
 
+/* 세마포어 비교 함수 */
+bool
+cond_compare_priority (const struct list_elem *a, const struct list_elem *b, UNUSED void *aux) {
+	// 세마 elem을 가리키는 포인터 선언 후 초기화
+	struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
+	struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
+	
+	// 각 세마포어 요소에서 대기중인 스레드 목록의 첫 번째 요소 얻기
+	struct thread *thread_a = list_entry(list_begin(&sema_a->semaphore.waiters), struct thread, elem);
+	struct thread *thread_b = list_entry(list_begin(&sema_b->semaphore.waiters), struct thread, elem);
+    
+	return thread_a->priority > thread_b->priority;
+}
+
 /* 이 함수는 LOCK을 원자적으로 해제하고 다른 코드에 의해 COND가 신호를 받을 때까지 기다린 다음, 
    반환하기 전에 LOCK을 다시 얻습니다. 이 함수를 호출하기 전에 LOCK이 보유되어야 합니다.
 
@@ -244,7 +284,8 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	sema_init (&waiter.semaphore, 0);
-	list_push_back (&cond->waiters, &waiter.elem);
+	list_insert_ordered(&cond->waiters, &waiter.elem, cond_compare_priority, NULL);
+	// list_push_back (&cond->waiters, &waiter.elem);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
@@ -264,6 +305,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	if (!list_empty (&cond->waiters))
+		list_sort(&cond->waiters, cond_compare_priority, NULL);
 		sema_up (&list_entry (list_pop_front (&cond->waiters),
 					struct semaphore_elem, elem)->semaphore);
 }
