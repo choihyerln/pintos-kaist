@@ -279,16 +279,6 @@ struct semaphore_elem {
 	struct semaphore semaphore;         /* This semaphore. */
 };
 
-bool
-compare_cond_priority(struct list_elem *a_e, struct list_elem *b_e, void *aux) {
-	struct semaphore_elem *sema_a = list_entry(a_e, struct semaphore_elem, elem);
-	struct semaphore_elem *sema_b = list_entry(b_e, struct semaphore_elem, elem);
-	
-	struct thread *thread_a = list_entry(list_begin(&sema_a->semaphore.waiters), struct thread, elem);
-	struct thread *thread_b = list_entry(list_begin(&sema_b->semaphore.waiters), struct thread, elem);
-
-	return thread_a->priority > thread_b->priority;	// true
-}
 
 /* COND(condition variable) 초기화
   조건 변수는 하나의 코드 조각이 조건을 신호로 보내고,
