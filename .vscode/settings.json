@@ -3,9 +3,22 @@
         "*.py": "python",
         "inttypes.h": "c",
         "thread.h": "c",
+<<<<<<< HEAD
         "interrupt.h": "c",
         "synch.h": "c",
         "intr-stubs.h": "c"
+=======
+        "ratio": "c",
+        "system_error": "c",
+        "array": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "stdbool.h": "c",
+        "tests.h": "c",
+        "debug.h": "c"
+>>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

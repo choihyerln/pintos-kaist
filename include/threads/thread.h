@@ -84,14 +84,17 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
+
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int origin_priority;				/* 기존 priority */
 
 	/* Shared between thread.c and synch.c. */
+<<<<<<< HEAD
 	struct list donation_list;					/* donate 리스트*/
 	struct list_elem d_elem;
 	struct list_elem elem;				/* 정보없는 리스트 요소*/
@@ -101,6 +104,14 @@ struct thread {
 
 
 
+=======
+	int64_t end_tick;					/* End tick: alarm 할 때 쓴 거 */
+	struct list donation_list;			/* 나한테 기부해준 스레드 담을 리스트 */
+	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
+	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
+	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
+	
+>>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -129,11 +140,20 @@ void thread_print_stats (void);
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
+void thread_sleep(int64_t wake_time);
+void thread_wake(int64_t now_ticks);
 void thread_block (void);
 void thread_unblock (struct thread *);
+bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_dpriority(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_cpriority(struct list_elem *a, struct list_elem *b, void *aux);
+
+/* donation시 필요한 함수 */
+bool donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+void donation_priority(void);
+void remove_thread_in_donation_list (struct lock *lock);
+void reset_priority(void);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -141,9 +161,12 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+<<<<<<< HEAD
 void thread_sleep(int64_t);
 void thread_wake(void);
 
+=======
+>>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 int thread_get_priority (void);
 void thread_set_priority (int);
 

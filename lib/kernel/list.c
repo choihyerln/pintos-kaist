@@ -63,7 +63,8 @@ list_init (struct list *list) {
 	list->tail.next = NULL;
 }
 
-/* Returns the beginning of LIST.  */
+/* Returns the beginning of LIST.  
+   보통 리스트를 반복할 때 사용됨 */
 struct list_elem *
 list_begin (struct list *list) {
 	ASSERT (list != NULL);
@@ -264,7 +265,8 @@ list_pop_back (struct list *list) {
 }
 
 /* Returns the front element in LIST.
-   Undefined behavior if LIST is empty. */
+   Undefined behavior if LIST is empty.
+   첫번째 요소에 직접적으로 액세스 하고 싶을 때 사용됨 */
 struct list_elem *
 list_front (struct list *list) {
 	ASSERT (!list_empty (list));
