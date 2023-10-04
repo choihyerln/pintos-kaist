@@ -13,12 +13,12 @@ void syscall_handler (struct intr_frame *);
 
 /* 시스템 호출.
  *
- * 이전에 시스템 호출 서비스는 인터럽트 핸들러에 의해 처리되었습니다
+ * 이전에 시스템 호출 서비스는 인터럽트 핸들러에 의해 처리되었다.
  * (예: 리눅스에서 int 0x80). 그러나 x86-64에서 제조업체는
- * 시스템 호출을 요청하기 위한 효율적인 경로를 제공합니다. 이 경로는
- * `syscall` 명령어로 작동합니다.
+ * 시스템 호출을 요청하기 위한 효율적인 경로를 제공한다. 이 경로는
+ * `syscall` 명령어로 작동한다.
  *
- * syscall 명령은 Model Specific Register (MSR)에서 값을 읽어오는 방식으로 동작합니다.
+ * syscall 명령은 Model Specific Register (MSR)에서 값을 읽어오는 방식으로 동작한다.
  * 자세한 내용은 매뉴얼을 참조하십시오. */
 
 #define MSR_STAR 0xc0000081         /* 세그먼트 선택자 MSR */
