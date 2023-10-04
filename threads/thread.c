@@ -62,11 +62,8 @@ static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
-<<<<<<< HEAD
-=======
 void thread_sleep(int64_t wake_time);
 
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);
 bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
@@ -240,31 +237,6 @@ compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
 	return lock_holder->priority > lock_requester->priority;
 }
 
-<<<<<<< HEAD
-/* 우선순위 비교 (숫자 클수록 우선순위 높음) */
-bool
-compare_dpriority(struct list_elem *me, struct list_elem *you, void *aux) {
-	struct thread *lock_holder = list_entry(me, struct thread, d_elem);
-	struct thread *lock_requester = list_entry(you, struct thread, d_elem);
-	return lock_holder->priority > lock_requester->priority;
-}
-
-void
-thread_wake(void) {
-	if(!list_empty(&sleep_list)) {
-		struct list_elem* front_elem = list_begin(&sleep_list);		
-		while (front_elem != list_end(&sleep_list)){
-			struct thread *sleep_front = list_entry(front_elem, struct thread, elem);
-			if(timer_ticks() >= sleep_front->end_tick){
-				front_elem = list_remove(front_elem);				// sleep 리스트에서 빼주고
-				thread_unblock(sleep_front);			// unblock 시켜줌
-			}	
-			else{
-				front_elem = list_next(front_elem);
-			}
-		}
-	}
-=======
 /* donate 시 우선순위 비교 (숫자 클수록 우선순위 높음) */
 bool
 donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux) {
@@ -331,7 +303,6 @@ thread_wake(int64_t now_ticks) {
             break;
         }
     }
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 }
 void
 thread_sleep(int64_t wake_times) {
@@ -340,18 +311,11 @@ thread_sleep(int64_t wake_times) {
 	ASSERT (!intr_context ());					// 인터럽트를 처리하고 있지 않아야 하고,
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
 
-<<<<<<< HEAD
-	// curr->status = THREAD_BLOCKED;
-	curr->end_tick = wake_times;		// block하는 구조체 깨울 시간 저장
-	list_insert_ordered(&sleep_list, &(curr->elem), compare_ticks, NULL);	// sleep 리스트에 삽입정렬
-	thread_block();			// 스케줄링
-=======
 	struct thread *curr = thread_current();
 	curr->end_tick = wake_time;		// block하는 구조체 깨울 시간 저장
 	list_insert_ordered(&sleep_list, &(curr->elem), compare_ticks, NULL);	// sleep 리스트에 삽입정렬
 
 	thread_block ();				// block하고 스케줄링
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 	intr_set_level(old_level);		// 인터럽트 다시 활성화
 }
 
@@ -466,11 +430,7 @@ thread_set_priority (int new_priority) {
 
 	struct thread *curr = thread_current();
 	curr->origin_priority = new_priority;
-<<<<<<< HEAD
-	refresh_priority();
-=======
 	reset_priority();
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 	thread_yield();
 }
 
@@ -569,13 +529,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
 	t->origin_priority = priority;
-<<<<<<< HEAD
-	list_init(&t->donation_list);
-	t->want_lock = NULL;
-=======
 	list_init(&t->donation_list);	// donation_list init
 	t->want_lock = NULL;			// want_lock init
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -739,11 +694,7 @@ schedule (void) {
 		/* Before switching the thread, we first save the information
 		 * of current running. */
 		thread_launch (next);
-<<<<<<< HEAD
-		// printf("\nschedule: %s \n",&curr->name);
-=======
 		// printf("--- 그 다음 실행되는 애: %d\n", next->priority);
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 	}
 }
 
