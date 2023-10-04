@@ -27,21 +27,21 @@ void syscall_handler (struct intr_frame *);
 
 void
 syscall_init (void) {
-	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
-			((uint64_t)SEL_KCSEG) << 32);
-	write_msr(MSR_LSTAR, (uint64_t) syscall_entry);
+    write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
+            ((uint64_t)SEL_KCSEG) << 32);
+    write_msr(MSR_LSTAR, (uint64_t) syscall_entry);
 
-	/* 시스템 호출 진입점이 사용자 영역 스택을 커널 모드 스택으로 교체할 때까지
-		인터럽트 서비스 루틴은 어떠한 인터럽트도 처리해서는 안 됩니다.
-		따라서 FLAG_FL을 마스킹했습니다. */
-	write_msr(MSR_SYSCALL_MASK,
-			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+    /* 시스템 호출 진입점이 사용자 영역 스택을 커널 모드 스택으로 교체할 때까지
+        인터럽트 서비스 루틴은 어떠한 인터럽트도 처리해서는 안 됩니다.
+        따라서 FLAG_FL을 마스킹했습니다. */
+    write_msr(MSR_SYSCALL_MASK,
+            FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
-	// TODO: 여기에 구현이 들어갑니다.
-	printf ("system call!\n");
-	thread_exit ();
+    // TODO: 여기에 구현이 들어갑니다.
+    printf ("system call!\n");
+    thread_exit ();
 }
