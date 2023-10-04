@@ -243,21 +243,21 @@ donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux) 
 /* 자신의 priority를 lock holder에게 donation 해주는 함수 */
 void
 donation_priority(void) {
-	int depth;
 	struct thread *curr = thread_current();
 
 	while (curr->want_lock) {
 		struct thread *holder = curr->want_lock->holder;	// curr가 요청한 락의 홀더
-		// holder->priority = list_entry(list_max(&holder->donation_list, donate_compare_priority, 0), struct thread, d_elem)->priority; -> 왜 안돼?....
-		holder->priority = curr->priority;	// donation, curr는 실행중이므로 이미 홀더보다 우선순위 높음
-		curr = holder;
+		if (holder->priority < curr->priority) {
+			// holder->priority = list_entry(list_min(&holder->donation_list, donate_compare_priority, 0), struct thread, d_elem)->priority;
+			holder->priority = curr->priority;	// donation, curr는 실행중이므로 이미 홀더보다 우선순위 높음
+			curr = holder;
+		}
 	}
 }
 
 /* donation_list에서 스레드 지우는 함수 */
 void
 remove_thread_in_donation_list (struct lock *lock) {
-	struct semaphore *sema;
 	struct list_elem *delem;
 
 	for (delem=list_begin(&lock->holder->donation_list);
@@ -271,13 +271,13 @@ remove_thread_in_donation_list (struct lock *lock) {
 /* priority 재설정하는 함수 */
 void
 reset_priority(void) {
-	struct thread *curr = thread_current();
+	struct thread *curr = thread_current();		// lock holder
 
 	curr->priority = curr->origin_priority;
-
+	
 	if (!list_empty(&curr->donation_list)) {
-		list_sort(&curr->donation_list, donate_compare_priority, NULL);
-		struct thread *max_thread = list_entry(list_front(&curr->donation_list), struct thread, d_elem);
+		// list_sort(&curr->donation_list, donate_compare_priority, NULL);
+		struct thread *max_thread = list_entry(list_min(&curr->donation_list, compare_priority, 0), struct thread, d_elem);
 		if (max_thread->priority > curr->priority)
 			curr->priority = max_thread->priority;
 	}
@@ -285,17 +285,17 @@ reset_priority(void) {
 
 void
 thread_wake(int64_t now_ticks) {
-    struct list_elem *front_elem = list_begin(&sleep_list);
-
-    while (front_elem != list_end(&sleep_list)) {
+    while (!list_empty(&sleep_list)) {
+    	struct list_elem *front_elem = list_front(&sleep_list);
         struct thread *sleep_thread = list_entry(front_elem, struct thread, elem);
-		// 현재 시각이 일어날 시간을 지났으면 -> 일어나!!
+		
+		// 현재 시각이 일어날 시간을 지났으면 -> 일어나!
         if (now_ticks >= sleep_thread->end_tick) { 
-            front_elem = list_remove(front_elem); 
+			struct thread *wake_thread = list_entry(list_pop_front(&sleep_list), struct thread, elem);
             thread_unblock(sleep_thread);
         }
         else {
-            front_elem = list_next(front_elem);
+            break;
         }
     }
 }
@@ -325,7 +325,6 @@ thread_block (void) {
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 상태가 OFF
 	thread_current ()->status = THREAD_BLOCKED;
 	//(struct list *, struct list_elem *, list_less_func *, void *aux)
-
 	schedule ();
 }
 

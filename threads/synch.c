@@ -52,7 +52,6 @@ sema_down (struct semaphore *sema) {
 	old_level = intr_disable ();	// 인터럽트 비활성화
 	while (sema->value == 0) {
 		list_push_back(&sema->waiters, &run_curr->elem);
-		// list_insert_ordered(&sema->waiters, &run_curr->elem, compare_priority, NULL);
 		thread_block ();	// 세마 = 0일 때, 요청 들어오면 세마리스트에 추가 후 block 처리
 	}
 	sema->value--;			// sema = 1일 때
@@ -101,7 +100,7 @@ sema_up (struct semaphore *sema) {
 	}
 	sema->value++;	// sema 값 증가
 	thread_yield();		// unblock 일어나므로 양보 작업 해줘야 함
-	intr_set_level (old_level);
+	intr_set_level (old_level); 
 }
 
 static void sema_test_helper (void *sema_);
@@ -183,6 +182,14 @@ lock_acquire (struct lock *lock) {
 
 	curr->want_lock = NULL;
 	lock->holder = curr;
+	// waiters에서 최댓값 뽑아서 holder에게 donation
+	if (!list_empty(&lock->semaphore.waiters)) {
+		struct thread *max_t = list_entry(list_min(&lock->semaphore.waiters, compare_priority, 0), struct thread, elem);
+		if (lock->holder->origin_priority < max_t->priority) {
+			list_push_back(&lock->holder->donation_list, &max_t->d_elem);
+			lock->holder->priority = max_t->priority;
+		}
+	}
 }
 
 /* LOCK을 획득을 시도하고, 성공한 경우에는 true를 반환하며 실패한 경우에는 false를 반환
