@@ -3,6 +3,6 @@ make clean
 make
 cd build
 source ../../activate
-pintos -- -q run alarm-multiple
-# pintos --gdb -q run alarm-multiple    // gdb
-# 하이
+pintos -- -q run priority-donate-chain
+# pintos -- -q run alarm-simultaneous
+# pintos --gdb -- run priority-donate-nest

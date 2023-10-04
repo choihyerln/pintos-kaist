@@ -9,7 +9,6 @@
 #include "vm/vm.h"
 #endif
 
-
 /* States in a thread's life cycle. */
 enum thread_status {
 	THREAD_RUNNING,     /* Running thread. */
@@ -92,13 +91,15 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
-	int orgin_priority;
-	struct list_elem elem;              /* List element. : ready list 가 init 될 때 사용되는 elem */
-	int64_t end_tick;					/* End tick */
-	struct lock *want_lock;
-	struct list donators;				/* Donated Priority */
-	struct list_elem d_elem;
+	int origin_priority;				/* 기존 priority */
 
+	/* Shared between thread.c and synch.c. */
+	int64_t end_tick;					/* End tick: alarm 할 때 쓴 거 */
+	struct list donation_list;			/* 나한테 기부해준 스레드 담을 리스트 */
+	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
+	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
+	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
+	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -127,8 +128,18 @@ void thread_print_stats (void);
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
+void thread_sleep(int64_t wake_time);
+void thread_wake(int64_t now_ticks);
 void thread_block (void);
 void thread_unblock (struct thread *);
+bool compare_ticks(struct list_elem *me, struct list_elem *you, void *aux);
+bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+
+/* donation시 필요한 함수 */
+bool donate_compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
+void donation_priority(void);
+void remove_thread_in_donation_list (struct lock *lock);
+void reset_priority(void);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
