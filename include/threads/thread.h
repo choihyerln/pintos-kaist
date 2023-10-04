@@ -94,24 +94,12 @@ struct thread {
 	int origin_priority;				/* 기존 priority */
 
 	/* Shared between thread.c and synch.c. */
-<<<<<<< HEAD
-	struct list donation_list;					/* donate 리스트*/
-	struct list_elem d_elem;
-	struct list_elem elem;				/* 정보없는 리스트 요소*/
-	int64_t end_tick;					/* End tick */
-	int origin_priority;				/* 기부받은 priority */
-	struct lock *want_lock;
-
-
-
-=======
 	int64_t end_tick;					/* End tick: alarm 할 때 쓴 거 */
 	struct list donation_list;			/* 나한테 기부해준 스레드 담을 리스트 */
 	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
 	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
 	
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -161,12 +149,6 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
-<<<<<<< HEAD
-void thread_sleep(int64_t);
-void thread_wake(void);
-
-=======
->>>>>>> 83635127cb61a0e26a56cac5b772c4d5b3501948
 int thread_get_priority (void);
 void thread_set_priority (int);
 
