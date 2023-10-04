@@ -44,17 +44,17 @@ test_priority_donate_nest (void)
   locks.a = &a;
   locks.b = &b;
   thread_create ("medium", PRI_DEFAULT + 1, medium_thread_func, &locks);
-  // thread_yield ();
+  thread_yield ();
   msg ("Low thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 1, thread_get_priority ());
 
   thread_create ("high", PRI_DEFAULT + 2, high_thread_func, &b);
-  // thread_yield ();
+  thread_yield ();
   msg ("Low thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 2, thread_get_priority ());
 
   lock_release (&a);
-  // thread_yield ();
+  thread_yield ();
   msg ("Medium thread should just have finished.");
   msg ("Low thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT, thread_get_priority ());
@@ -73,10 +73,10 @@ medium_thread_func (void *locks_)
   msg ("Medium thread got the lock.");
 
   lock_release (locks->a);
-  // thread_yield ();
+  thread_yield ();
 
   lock_release (locks->b);
-  // thread_yield ();
+  thread_yield ();
 
   msg ("High thread should have just finished.");
   msg ("Middle thread finished.");

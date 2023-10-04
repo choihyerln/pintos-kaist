@@ -216,32 +216,6 @@ lock_try_acquire (struct lock *lock) {
 	return success;
 }
 
-void
-donator_remove(struct lock *lock){
-	for (struct list_elem *e = list_begin (&lock->holder->donators); e != list_end (&lock->holder->donators); e = list_next (e)){
-
-		struct thread *d_t = list_entry(e, struct thread, d_elem);
-		if(d_t->want_lock == lock){
-			list_remove(&d_t->d_elem);
-			// break (X)
-		}
-	}
-}
-void
-priority_refresh(struct thread* holder)
-{
-	if(!list_empty(&holder->donators)){
-		list_sort(&holder->donators, compare_donator_priority, NULL);
-		struct list_elem *d_e = list_front(&holder->donators);
-		struct thread *max_donator = list_entry(d_e, struct thread, d_elem);
-
-		if(holder->orgin_priority < max_donator->priority){
-			holder->priority =  max_donator->priority;
-		}
-	}else{
-		holder->priority = holder->orgin_priority;
-	}
-}
 /* 현재 스레드가 소유한 LOCK을 해제합니다.
  * 인터럽트 핸들러는 LOCK을 획득할 수 없으므로
  * 인터럽트 핸들러 내에서 LOCK을 해제하는 것은 의미가 없습니다.
@@ -278,6 +252,7 @@ struct semaphore_elem {
 	struct list_elem elem;              /* List element. */
 	struct semaphore semaphore;         /* This semaphore. */
 };
+
 
 /* COND(condition variable) 초기화
   조건 변수는 하나의 코드 조각이 조건을 신호로 보내고,

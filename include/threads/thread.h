@@ -147,7 +147,6 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
-void holder_yield (void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
@@ -157,8 +156,5 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
-
-bool compare_priority(struct list_elem *me, struct list_elem *you, void *aux);
-bool compare_donator_priority(struct list_elem *trier_blk, struct list_elem *list_blk, void *aux);
 
 #endif /* threads/thread.h */
