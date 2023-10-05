@@ -91,24 +91,29 @@ sema_try_down (struct semaphore *sema) {
 void
 sema_up (struct semaphore *sema) {
 	enum intr_level old_level;
-
+	struct thread* next = NULL;
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
 
 	if (!list_empty (&sema->waiters))	{// waiters에 들어있을 때
 		list_sort(&sema->waiters, compare_priority, NULL);
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));	// unblock처리 -> ready list로 옮겨줌
+		next = list_entry (list_pop_front (&sema->waiters),
+					struct thread, elem);
+		thread_unblock (next);	// unblock처리 -> ready list로 옮겨줌
 	}
+
 	sema->value++;	// sema 값 증가
-	#ifdef USERPROG
-        if (thread_current()->pml4 != 0 && !intr_context()) {
-            thread_yield();     // unblock 일어나므로 양보 작업 해줘야 함
-        }
-    #else
-        thread_yield();
-    #endif
+	if (next && !intr_context()  && next->priority > thread_current()->priority ){
+		thread_yield();
+	}
+	// #ifdef USERPROG
+    //     if (thread_current()->pml4 != 0 && !intr_context()) {
+    //         thread_yield();     // unblock 일어나므로 양보 작업 해줘야 함
+    //     }
+    // #else
+    //     thread_yield();
+    // #endif
 	intr_set_level (old_level); 
 }
 

@@ -213,6 +213,7 @@ thread_create (const char *name, int priority,
 	/* Add to run queue. */
 	thread_unblock (t);		// status ready로 바꿔주고 새로 생성한거 ready list에 넣어줌
 	thread_yield();			// 우선순위 비교해서 running할지 확인
+
 	return tid;
 }
 /* sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..! */
@@ -343,9 +344,10 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-
+	
 	// ready_list에 넣을 때, list_insert_ordered 사용하기
 	list_insert_ordered(&ready_list, &(t->elem), compare_priority, NULL);
+
 
 	t->status = THREAD_READY;
 
@@ -659,7 +661,6 @@ do_schedule(int status) {		// 새로운 프로세스를 스케줄 하는 과정,
 static void
 schedule (void) {
 	struct thread *curr = running_thread ();		// 현재 실행중인 스레드인 주소
-	// printf("--- 현재 실행 중: %d\n", curr->priority);
 	struct thread *next = next_thread_to_run ();	// 다음에 실행될 스레드인 주소
 
 	ASSERT (intr_get_level () == INTR_OFF);		// 인터럽트 X

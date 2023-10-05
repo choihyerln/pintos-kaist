@@ -173,7 +173,6 @@ process_exec (void *f_name) {
 	/* 먼저 현재 컨텍스트를 종료합니다. */
 	process_cleanup ();
 
-	/* 그런 다음 이진 파일을 로드합니다. */
 	success = load (file_name, &_if);
 
 	/* 로드에 실패한 경우 종료합니다. */
@@ -191,13 +190,14 @@ process_exec (void *f_name) {
  * 만약 커널에 의해 종료되었거나 (즉, 예외로 인해 종료된 경우) -1을 반환합니다.
  * TID가 유효하지 않거나 호출하는 프로세스의 자식이 아니거나,
  * 주어진 TID에 대해 이미 process_wait()이 성공적으로 호출되었거나, 대기하지 않고 즉시 -1을 반환합니다.
-
  * 이 함수는 2-2 문제에서 구현됩니다. 현재로서는 아무 작업도 수행하지 않습니다.*/
 int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
+
+	
 	return -1;
 }
 
@@ -326,6 +326,20 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
+	char* parse[10];
+	int cnt = 0;
+	char *token, *save_ptr;
+	int total_size=0;
+
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL;token = strtok_r(NULL, " ", &save_ptr)){
+			parse[cnt] = token;
+			cnt++;
+		}
+		parse[cnt] = NULL;
+
+		_if.R.rsi = parse[0];
+		_if.R.rdi = cnt;
+
 	/* 실행 파일을 엽니다. */
 	file = filesys_open (file_name);
 	if (file == NULL) {
@@ -406,9 +420,15 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* 시작주소. */
 	if_->rip = ehdr.e_entry;
 
-
 	/* TODO: 여기에 코드를 작성하세요.
 	   TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
+	int argc = 2*cnt+2;
+	char* argv[argc];
+	for (int i = 1; i < cnt; i++){
+		if_->rsp -= strlen(parse[i]);
+		memcpy(if->rsp,)
+
+	}
 
 	success = true;
 
