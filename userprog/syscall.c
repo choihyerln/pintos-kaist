@@ -41,10 +41,10 @@ syscall_init (void) {
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
-    // TODO: 여기에 구현이 들어갑니다.
-    printf ("system call!\n");
-    // if (f->R.rax == SYS_WRITE) {
-    //     printf("@@ %s", f->R.rsi);
-    // }
-    thread_exit ();
+    if (f->R.rax == SYS_WRITE) {
+
+        printf("%s", f->R.rsi);
+    }
+    if(f->R.rax == SYS_EXIT)
+        thread_exit ();
 }

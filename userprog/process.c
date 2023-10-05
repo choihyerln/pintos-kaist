@@ -184,29 +184,8 @@ process_exec (void *f_name) {
 	/* 먼저 현재 컨텍스트를 종료합니다. */
 	process_cleanup ();
 
-	/* 파일 이름을 공백 문자 기준으로 토큰으로 분할하고,
-	첫 번째 토큰을 사용하여 파일을 연다.
-	주로 프로그램이 파일 이름을 입력으로 받아 해당 파일을 열어야 할 때 사용된다. */
-
-	int argc = 0;
-	char *argv[10];
-	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
-
-	// for (int i=0; i<10; i++) {
-		argv[0] = (char*) USER_STACK;
-	// }
-
-	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
-		argv[argc] = token;
-		argc++;
-	}
-	argv[argc] = NULL;
-
-	_if.R.rdi = argc;
-	_if.R.rsi = argv;
-
 	/* 그런 다음 이진 파일을 로드합니다. */
-	success = load (argv[0], &_if);
+	success = load (file_name, &_if);
 
 	/* 로드에 실패한 경우 종료합니다. */
 	palloc_free_page (file_name);
@@ -358,6 +337,19 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 
 	/* 실행 파일을 엽니다. */
+	
+	/* parse */
+	int cnt = 0;
+	char *argv[10];
+	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
+
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv[cnt] = token;
+		cnt++;
+	}
+	// 마지막 NULL 값 넣기
+	argv[cnt] = NULL;
+
 	file = filesys_open (file_name);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
@@ -438,22 +430,57 @@ load (const char *file_name, struct intr_frame *if_) {
 	if_->rip = ehdr.e_entry;
 
 
-	/* TODO: 여기에 코드를 작성하세요.
-	   TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
-	arg_stack();
+	/* 전달할 인자 수 */
+	int argc = cnt;
+	// 위에서 rsp에 userstack 으로 초기화 해줌 (TO DO)
+	char *sp = if_->rsp;
+	
+	/* 데이터 저장 */
+	for (int i=(cnt-1); i >= 0; i--){
+		
+		// rsp 포인터를 strlen 만큼 내리기
+		if_->rsp -= (strlen(argv[i])+1);	// argv[i]+1 : NULL 포인터를 포함시킨 길이
 
+		// rsp 포인터에 argv[i] 문자열을 strlen 길이 만큼 복사 붙여넣기
+		memcpy(if_->rsp, argv[i], strlen(argv[i])+1);
+		
+		// argv 배열에 rsp 주소값 저장 (재사용)
+		argv[i] = (char *)if_->rsp;
+		//argv[i] = if_->rsp;
+	}
+
+
+	/* alignment  : TODO */
+	if_->rsp -= 5;
+	memset(if_->rsp, 0, 5);
+	// sp = ROUND_UP(sp, 8);
+
+	/* 주소 저장 */
+	for (int i=cnt; i >= 0; i--){
+
+		// 주소 크기만큼 rsp 포인터 내려주기
+		if_->rsp-= sizeof(uint64_t);
+
+		// rsp 포인터에 argv[i]의 주소값을 8 byte 만큼 복사 붙여넣기
+		memcpy(if_->rsp, &argv[i], sizeof(uint64_t));
+	}
+
+	// rsi, rdi 갱신
+	if_->R.rsi = (uint64_t)(if_->rsp);
+	if_->R.rdi = argc;
+    
+	// return address 0 설정
+	if_->rsp -= sizeof(uint64_t);
+	memset(if_->rsp, 0, sizeof(uint64_t));	// rsp
+	//memcpy(if_->rsp, "\0", sizeof(uint64_t));	// rsp
+
+	
 	success = true;
 
 done:
 	/* 로드가 성공했든 실패했든 이곳에 도달합니다. */
 	file_close (file);
 	return success;
-}
-
-void arg_stack(char **parse ,int count ,void **esp) {
-	// struct intr_frame _if;
-	// _if.R.rdi = argc;
-	// _if.R.rsi = argv;
 }
 
 
