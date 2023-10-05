@@ -11,7 +11,9 @@
         "utility": "c",
         "stdbool.h": "c",
         "tests.h": "c",
-        "debug.h": "c"
+        "debug.h": "c",
+        "atomic": "c",
+        "cstdint": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -50,7 +50,17 @@ process_create_initd (const char *file_name) {
 	strlcpy (fn_copy, file_name, PGSIZE);
 
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+
+	int argc = 0;
+	char argv[10];
+	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
+
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv[argc] = token;
+		argc++;
+	}
+	
+	tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -162,6 +172,7 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
+	// printf("process_exec f_name 출력: %s\n", f_name);	// 커널모드라서?
 
 	/* 스레드 구조체의 intr_frame을 사용할 수 없습니다.
 	 * 현재 스레드가 재스케줄되면 실행 정보를 해당 멤버에 저장하기 때문입니다. */
@@ -179,7 +190,6 @@ process_exec (void *f_name) {
 	palloc_free_page (file_name);
 	if (!success)
 		return -1;
-
 	/* "전환된 프로세스를 시작합니다. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -341,6 +351,19 @@ load (const char *file_name, struct intr_frame *if_) {
 		_if.R.rdi = cnt;
 
 	/* 실행 파일을 엽니다. */
+	
+	/* parse */
+	int cnt = 0;
+	char *argv[10];
+	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
+
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv[cnt] = token;
+		cnt++;
+	}
+	// 마지막 NULL 값 넣기
+	argv[cnt] = NULL;
+
 	file = filesys_open (file_name);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
@@ -420,16 +443,52 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* 시작주소. */
 	if_->rip = ehdr.e_entry;
 
-	/* TODO: 여기에 코드를 작성하세요.
-	   TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
-	int argc = 2*cnt+2;
-	char* argv[argc];
-	for (int i = 1; i < cnt; i++){
-		if_->rsp -= strlen(parse[i]);
-		memcpy(if->rsp,)
 
+	/* 전달할 인자 수 */
+	int argc = cnt;
+	// 위에서 rsp에 userstack 으로 초기화 해줌 (TO DO)
+	char *sp = if_->rsp;
+	
+	/* 데이터 저장 */
+	for (int i=(cnt-1); i >= 0; i--){
+		
+		// rsp 포인터를 strlen 만큼 내리기
+		if_->rsp -= (strlen(argv[i])+1);	// argv[i]+1 : NULL 포인터를 포함시킨 길이
+
+		// rsp 포인터에 argv[i] 문자열을 strlen 길이 만큼 복사 붙여넣기
+		memcpy(if_->rsp, argv[i], strlen(argv[i])+1);
+		
+		// argv 배열에 rsp 주소값 저장 (재사용)
+		argv[i] = (char *)if_->rsp;
+		//argv[i] = if_->rsp;
 	}
 
+
+	/* alignment  : TODO */
+	if_->rsp -= 5;
+	memset(if_->rsp, 0, 5);
+	// sp = ROUND_UP(sp, 8);
+
+	/* 주소 저장 */
+	for (int i=cnt; i >= 0; i--){
+
+		// 주소 크기만큼 rsp 포인터 내려주기
+		if_->rsp-= sizeof(uint64_t);
+
+		// rsp 포인터에 argv[i]의 주소값을 8 byte 만큼 복사 붙여넣기
+		memcpy(if_->rsp, &argv[i], sizeof(uint64_t));
+	}
+
+	// rsi, rdi 갱신
+	if_->R.rsi = (uint64_t)(if_->rsp);
+	if_->R.rdi = argc;
+    
+	// return address 0 설정
+	if_->rsp -= sizeof(uint64_t);
+	memset(if_->rsp, 0, sizeof(uint64_t));	// rsp
+	//memcpy(if_->rsp, "\0", sizeof(uint64_t));	// rsp
+
+	
 	success = true;
 
 done:
@@ -437,7 +496,6 @@ done:
 	file_close (file);
 	return success;
 }
-
 
 
 /* PHDR이 FILE에서 유효하고 로드 가능한 세그먼트를 나타내는지 확인하고,
