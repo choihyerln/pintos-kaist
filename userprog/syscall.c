@@ -43,5 +43,8 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
     // TODO: 여기에 구현이 들어갑니다.
     printf ("system call!\n");
+    // if (f->R.rax == SYS_WRITE) {
+    //     printf("@@ %s", f->R.rsi);
+    // }
     thread_exit ();
 }

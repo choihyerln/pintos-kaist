@@ -212,9 +212,11 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);		// status ready로 바꿔주고 새로 생성한거 ready list에 넣어줌
-	thread_yield();			// 우선순위 비교해서 running할지 확인
+	if (t->priority >= thread_current()->priority)
+		thread_yield();	   // 우선순위 비교해서 running할지 확인
 	return tid;
 }
+
 /* sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..! */
 bool
 compare_ticks(struct list_elem *me, struct list_elem *you, void *aux) {
