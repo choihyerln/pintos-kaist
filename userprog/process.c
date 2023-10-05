@@ -50,7 +50,17 @@ process_create_initd (const char *file_name) {
 	strlcpy (fn_copy, file_name, PGSIZE);
 
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+
+	int argc = 0;
+	char argv[10];
+	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
+
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv[argc] = token;
+		argc++;
+	}
+	
+	tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -162,6 +172,7 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
+	// printf("process_exec f_name 출력: %s\n", f_name);	// 커널모드라서?
 
 	/* 스레드 구조체의 intr_frame을 사용할 수 없습니다.
 	 * 현재 스레드가 재스케줄되면 실행 정보를 해당 멤버에 저장하기 때문입니다. */
@@ -173,14 +184,34 @@ process_exec (void *f_name) {
 	/* 먼저 현재 컨텍스트를 종료합니다. */
 	process_cleanup ();
 
+	/* 파일 이름을 공백 문자 기준으로 토큰으로 분할하고,
+	첫 번째 토큰을 사용하여 파일을 연다.
+	주로 프로그램이 파일 이름을 입력으로 받아 해당 파일을 열어야 할 때 사용된다. */
+
+	int argc = 0;
+	char *argv[10];
+	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
+
+	// for (int i=0; i<10; i++) {
+		argv[0] = (char*) USER_STACK;
+	// }
+
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv[argc] = token;
+		argc++;
+	}
+	argv[argc] = NULL;
+
+	_if.R.rdi = argc;
+	_if.R.rsi = argv;
+
 	/* 그런 다음 이진 파일을 로드합니다. */
-	success = load (file_name, &_if);
+	success = load (argv[0], &_if);
 
 	/* 로드에 실패한 경우 종료합니다. */
 	palloc_free_page (file_name);
 	if (!success)
 		return -1;
-
 	/* "전환된 프로세스를 시작합니다. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -409,6 +440,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: 여기에 코드를 작성하세요.
 	   TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
+	arg_stack();
 
 	success = true;
 
@@ -418,6 +450,11 @@ done:
 	return success;
 }
 
+void arg_stack(char **parse ,int count ,void **esp) {
+	// struct intr_frame _if;
+	// _if.R.rdi = argc;
+	// _if.R.rsi = argv;
+}
 
 
 /* PHDR이 FILE에서 유효하고 로드 가능한 세그먼트를 나타내는지 확인하고,

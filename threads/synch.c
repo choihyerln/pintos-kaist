@@ -95,27 +95,23 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-
+	struct thread *next = NULL;
 	if (!list_empty (&sema->waiters))	{// waiters에 들어있을 때
 		list_sort(&sema->waiters, compare_priority, NULL);
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));	// unblock처리 -> ready list로 옮겨줌
+		next = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
+		thread_unblock (next);	// unblock처리 -> ready list로 옮겨줌
 	}
 	sema->value++;	// sema 값 증가
-	#ifdef USERPROG
-        if (thread_current()->pml4 != 0 && !intr_context()) {
-            thread_yield();     // unblock 일어나므로 양보 작업 해줘야 함
-        }
-    #else
-        thread_yield();
-    #endif
+	if (next && next->priority > thread_current()->priority && !intr_context()) {
+		thread_yield();
+	}
 	intr_set_level (old_level); 
 }
 
 static void sema_test_helper (void *sema_);
 
 /* 쌍의 스레드 간에 제어를 "ping-pong" 하도록 하는 세마포에 대한 자체 테스트입니다.
-   무슨 일이 벌어지는지 확인하려면 printf() 호출을 삽입하십시오.*/
+   무슨 일이 벌어지는지 확인하려면 printf() 호출을 삽입하십시오. */
 void
 sema_self_test (void) {
 	struct semaphore sema[2];

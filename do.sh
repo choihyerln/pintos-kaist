@@ -8,3 +8,4 @@ source ../../activate
 # pintos --gdb -- run priority-donate-nest
 
 pintos --fs-disk=10 -p tests/userprog/args-single:args-single -- -q -f run 'args-single onearg'
+# pintos --fs-disk=10 -p tests/userprog/args-single:args-single --gdb -- -q -f run 'args-single onearg'
