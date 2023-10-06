@@ -39,40 +39,37 @@ syscall_init (void) {
 }
 
 /* Pintos 종료 */
-void
-halt (void){
+void halt (void) {
     power_off();
 }
 
-/* 동작중인 유저 프로그램 종료 */
-void exit (int status){
-    if(!status){
-        printf("%s : exit(%d)\n", thread_name(), status);
-        thread_exit();
-    }
- }
-
-/* thread_name이라는 이름을 가진 현재 프로세스 복제 */
-pid_t fork (const char *thread_name){
-
+/* 동작 중인 유저 프로그램(스레드) 종료 */
+void exit (int status) {
+    struct thread *curr = thread_current();
+    curr->tf.R.rax = status;    // 레지스터에 status 저장 (어차피 종료시킬거니까 아무 레지스터나 사용)
+    printf("%s: exit(%d)\n", thread_name(), curr->tf.R.rax);
+    thread_exit();
 }
 
-/* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
-int exec (const char *cmd_line){
+// /* thread_name이라는 이름을 가진 현재 프로세스 복제 */
+// pid_t fork (const char *thread_name) {
 
-}
+// }
 
-/* 자식 프로세스를 기다려서 자식의 종료 상태를 가져온다. */
-int wait (pid_t pid){
+// /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
+// int exec (const char *cmd_line){
 
-}
+// }
+
+// /* 자식 프로세스를 기다려서 자식의 종료 상태를 가져온다. */
+// int wait (pid_t pid){
+// }
 
 /* 새로운 파일 생성 */
-bool create (const char *file, unsigned initial_size){
+bool create (const char *file, unsigned initial_size) {
     bool isCreate = filesys_create(file, initial_size);
-    if(isCreate){
+    if(isCreate)
         return true;
-    }
     return false;
 }
 
@@ -121,11 +118,11 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
     switch(f->R.rax){
         case SYS_HALT:
-            void halt(void); break;
+            void halt(void);
+            break;
         
         case SYS_EXIT:
-            printf("%s: exit(%d)\n", thread_name(), 0);
-            thread_exit();
+            exit(f->R.rdi); // 첫번째 인자는 rdi에 저장됨
             break;
         
         case SYS_FORK:
