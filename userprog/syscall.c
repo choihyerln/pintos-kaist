@@ -10,6 +10,7 @@
 #include "threads/init.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "string.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -57,33 +58,62 @@ void exit (int status) {
 // }
 
 // /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
-// int exec (const char *cmd_line){
+// int exec (const char *cmd_line) {
 
 // }
 
 // /* 자식 프로세스를 기다려서 자식의 종료 상태를 가져온다. */
-// int wait (pid_t pid){
+// int wait (pid_t pid) {
 // }
 
 /* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size) {
-    bool isCreate = filesys_create(file, initial_size);
-    if(isCreate)
-        return true;
-    return false;
+    return filesys_create(file, initial_size);
 }
 
-/* file 이라는 이름을 가진 파일 삭제 */
-// bool remove (const char *file){
+/* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
+void is_valid_file(const uint64_t *file) {
+	struct thread *curr = thread_current();
+    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)))
+	{
+		exit(-1);
+	}
+}
+
+/* 파일 디스크립터 설정 함수 */
+int fd_settig(struct thread *curr, struct file *open_file) {
+    for(int i=2; i < 128; i++) {
+        if(curr->fd_table[i].fd == -1) {        
+            curr->fd_table[i].fd = i;
+            curr->fd_table[i].file = open_file;
+            return curr->fd_table[i].fd;
+        }
+    }
+}
+
+/* file 이라는 이름을 가진 파일 오픈 */
+int open (const char *file) {
+    is_valid_file(&file);
+    struct file *open_file = filesys_open (file);
+
+    if (!open_file) {
+        return -1;
+    }
+    else {
+        struct thread *curr = thread_current();
+        fd_settig(curr, open_file);
+    }
+ }
+
+
+// /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
+// int filesize (int fd) {
 
 // }
 
 /* file 이라는 이름을 가진 파일 오픈 */
-int open (const char *file){
-    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file")){
-        return -1;
-    }
-
+int open (const char *file) {
+    is_valid_file(&file);
     struct file *open_file = filesys_open (file);
 
     if (!open_file){
@@ -97,30 +127,31 @@ int open (const char *file){
             return i;
         }
     }
-}
+ }
 
-/* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
-int filesize (int fd){
 
-}
+// /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
+// int filesize (int fd) {
+
+// }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
-// int read (int fd, void *buffer, unsigned size){
+// int read (int fd, void *buffer, unsigned size) {
 
 // }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
-// int write (int fd, const void *buffer, unsigned size){
+// int write (int fd, const void *buffer, unsigned size) {
 
 // }
 
 /* open file fd에서 읽거나 쓸 다음 바이트를 position으로 변경 */
-// void seek (int fd, unsigned position){
+// void seek (int fd, unsigned position) {
 
 // }
 
 /* 열려진 파일 fd에서 읽히거나 써질 다음 바이트의 위치 반환 */
-// unsigned tell (int fd){
+// unsigned tell (int fd) {
 
 // }
 
@@ -137,7 +168,8 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
     switch(f->R.rax){
         case SYS_HALT:
-            void halt(void); break;
+            void halt(void);
+            break;
         
         case SYS_EXIT:
             exit(f->R.rdi); // 첫번째 인자는 rdi에 저장됨
@@ -160,8 +192,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_OPEN:
-            
-            f->R.rax = open (f->R.rdi);
+            f->R.rax= open(f->R.rdi);
             break;
         
         case SYS_FILESIZE:

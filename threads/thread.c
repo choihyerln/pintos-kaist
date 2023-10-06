@@ -60,6 +60,7 @@ static void kernel_thread (thread_func *, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
+void init_fd_table(struct thread *t);
 static void do_schedule(int status);
 static void schedule (void);
 void thread_sleep(int64_t wake_time);
