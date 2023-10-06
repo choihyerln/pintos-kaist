@@ -9,6 +9,7 @@
 #include "intrinsic.h"
 #include "threads/init.h"
 #include "filesys/filesys.h"
+#include "string.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -66,6 +67,9 @@ void exit (int status) {
 
 /* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size) {
+    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file")){
+        exit(-1);
+    }
     bool isCreate = filesys_create(file, initial_size);
     if(isCreate)
         return true;
@@ -73,29 +77,38 @@ bool create (const char *file, unsigned initial_size) {
 }
 
 /* file 이라는 이름을 가진 파일 삭제 */
-// bool remove (const char *file){
-
-// }
-
+void is_valid_file(const uint64_t *file)
+{
+	struct thread *curr = thread_current();
+    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)))
+	{
+		exit(-1);
+	}
+}
 /* file 이라는 이름을 가진 파일 오픈 */
 int open (const char *file){
-    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file")){
-        return -1;
-    }
-
+    is_valid_file(&file);
     struct file *open_file = filesys_open (file);
 
     if (!open_file){
         return -1;
     } else{
-           
+        struct thread* curr = thread_current();
+        
+        for(int i=2; i < 128; i++){
+            if(curr->fd_table[i].fd == -1){        
+                curr->fd_table[i].fd = i;
+                curr->fd_table[i].file = open_file;
+                return curr->fd_table[i].fd;
+            }
+        }
     }
 }
 
-/* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
-int filesize (int fd){
+// /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
+// int filesize (int fd){
 
-}
+// }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 // int read (int fd, void *buffer, unsigned size){
@@ -118,9 +131,10 @@ int filesize (int fd){
 // }
 
 /* 파일 식별자 fd를 닫는다. */
-// void close (int fd){
+void close (int fd){
+    // fclose();
     
-// }
+}
 
 /* 주요 시스템 호출 인터페이스 */
 void
@@ -150,8 +164,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_OPEN:
-            
-            open (f->R.rdi);
+            f->R.rax= open(f->R.rdi);
             break;
         
         case SYS_FILESIZE:

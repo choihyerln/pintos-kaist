@@ -60,6 +60,7 @@ static void kernel_thread (thread_func *, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
+void init_fd_table(struct thread *t);
 static void do_schedule(int status);
 static void schedule (void);
 void thread_sleep(int64_t wake_time);
@@ -530,6 +531,14 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->origin_priority = priority;
 	list_init(&t->donation_list);	// donation_list init
 	t->want_lock = NULL;			// want_lock init
+	init_fd_table(t);
+
+}
+void init_fd_table(struct thread *t){
+	for(int i=0; i<128; i++){
+		t->fd_table[i].file = NULL;
+		t->fd_table[i].fd = -1;
+	}
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
