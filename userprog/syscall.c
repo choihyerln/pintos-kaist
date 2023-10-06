@@ -9,6 +9,7 @@
 #include "intrinsic.h"
 #include "threads/init.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -87,8 +88,14 @@ int open (const char *file){
 
     if (!open_file){
         return -1;
-    } else{
-           
+    }
+    struct thread* curr = thread_current();
+    for(int i=2; i < 128; i++){
+        if(curr->fd_table[i].fd == -1){
+            curr->fd_table[i].fd = i;
+            curr->fd_table[i].file = open_file;
+            return i;
+        }
     }
 }
 
@@ -118,9 +125,12 @@ int filesize (int fd){
 // }
 
 /* 파일 식별자 fd를 닫는다. */
-// void close (int fd){
-    
-// }
+void close (int fd){
+    // 1. fd를 통해서 현재 스레드의 file을 찾는다.
+    // 그리고 삭제
+    // 해당 스레드를 찾았는데 이미 삭제되어있으면 
+    file_close (file);
+}
 
 /* 주요 시스템 호출 인터페이스 */
 void
@@ -151,7 +161,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
         
         case SYS_OPEN:
             
-            open (f->R.rdi);
+            f->R.rax = open (f->R.rdi);
             break;
         
         case SYS_FILESIZE:
@@ -171,6 +181,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_CLOSE:
+            f->R.rax = close (f->R.rdi);
             break;
 
         default:

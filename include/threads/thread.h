@@ -85,7 +85,7 @@ typedef int tid_t;
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
 
-struct file_descriprot {
+struct file_descriptor {
 	struct file *file;
 	int fd;
 };
@@ -104,7 +104,7 @@ struct thread {
 	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
 	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
-	struct file_descriprot fd_table[128];
+	struct file_descriptor fd_table[128];
 	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -130,6 +130,7 @@ void thread_start (void);
 
 void thread_tick (void);
 void thread_print_stats (void);
+void init_fd_table(struct thread *t);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
