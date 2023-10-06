@@ -12,7 +12,7 @@
 #include "string.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
-
+int is_valid_file(const char *file);
 /* 시스템 호출.
  *
  * 이전에 시스템 호출 서비스는 인터럽트 핸들러에 의해 처리되었다.
@@ -66,42 +66,47 @@ void exit (int status) {
 // }
 
 /* 새로운 파일 생성 */
+
 bool create (const char *file, unsigned initial_size) {
+    if(!is_valid_file(file)){
+        exit(-1);
+    }
     return filesys_create(file, initial_size);
+
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
-void is_valid_file(const uint64_t *file) {
-	struct thread *curr = thread_current();
+int is_valid_file(const char *file) {
     if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)))
 	{
-		exit(-1);
+		return 0;
 	}
+    return 1;
 }
 
 /* 파일 디스크립터 설정 함수 */
-int fd_settig(struct thread *curr, struct file *open_file) {
+int fd_setting(struct file *open_file) {
+    struct thread *curr = thread_current();
+
     for(int i=2; i < 128; i++) {
         if(curr->fd_table[i].fd == -1) {        
             curr->fd_table[i].fd = i;
             curr->fd_table[i].file = open_file;
-            return curr->fd_table[i].fd;
+            return i;
         }
     }
 }
 
 /* file 이라는 이름을 가진 파일 오픈 */
 int open (const char *file) {
-    is_valid_file(&file);
-    struct file *open_file = filesys_open (file);
-
-    if (!open_file) {
+    if(!is_valid_file(file)){
         return -1;
     }
-    else {
-        struct thread *curr = thread_current();
-        fd_settig(curr, open_file);
-    }
+    struct file *open_file = filesys_open (file);
+
+    struct thread *curr = thread_current();
+
+    fd_setting(&open_file);
  }
 
 
@@ -158,7 +163,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_CREATE:
-            create(f->R.rdi, f->R.rsi);
+            f->R.rax= create(f->R.rdi, f->R.rsi);
             break;
         
         case SYS_REMOVE:
