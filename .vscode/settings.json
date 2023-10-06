@@ -13,7 +13,12 @@
         "tests.h": "c",
         "debug.h": "c",
         "atomic": "c",
-        "cstdint": "c"
+        "cstdint": "c",
+        "cstdlib": "c",
+        "numeric": "c",
+        "ostream": "c",
+        "typeinfo": "c",
+        "*.inc": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
