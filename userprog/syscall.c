@@ -8,7 +8,7 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
-
+#include "threads/init.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -38,54 +38,95 @@ syscall_init (void) {
     write_msr(MSR_SYSCALL_MASK,
             FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
+void halt (void){
+    power_off();
+}
+void exit (int status){
 
+}
+pid_t fork (const char *thread_name){
+
+}
+int exec (const char *cmd_line){
+
+}
+int wait (pid_t pid){
+
+}
+bool create (const char *file, unsigned initial_size){
+
+}
+bool remove (const char *file){
+
+}
+bool remove (const char *file){
+
+}
+int filesize (int fd){
+
+}
+int filesize (int fd){
+
+}
+int write (int fd, const void *buffer, unsigned size){
+
+}
+void seek (int fd, unsigned position){
+
+}
+unsigned tell (int fd){
+
+}
+void close (int fd){
+    
+}
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
     switch(f->R.rax){
         case SYS_HALT:
-            power_off();
-            break;
+            void halt(void); break;
+        
         case SYS_EXIT:
-            printf("%s: exit(0)\n", f->R.rsi);
-            thread_exit ();
-            break;
+            thread_exit(); break;
+        
         case SYS_FORK:
-            //실행문 넣기
             break;
+        
         case SYS_EXEC:
-            //실행문 넣기
             break;
+        
         case SYS_WAIT:
-            //실행문 넣기
             break;
+        
         case SYS_CREATE:
-            //실행문 넣기
             break;
+        
         case SYS_REMOVE:
-            //실행문 넣기
             break;
+        
         case SYS_OPEN:
-            //실행문 넣기
             break;
+        
         case SYS_FILESIZE:
-            //실행문 넣기
             break;
+        
         case SYS_READ:
-            //실행문 넣기
             break;
+        
         case SYS_WRITE:
-            printf("%s", f->R.rsi);
-            break;
+            printf("%s", f->R.rsi); break;
+        
         case SYS_SEEK:
-            //실행문 넣기
             break;
+        
         case SYS_TELL:
-            //실행문 넣기
             break;
+        
         case SYS_CLOSE:
-            //실행문 넣기
             break;
+
+        default:
+            break;                                                                                                      
     }
 }
-
