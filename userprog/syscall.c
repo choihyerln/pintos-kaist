@@ -54,19 +54,19 @@ void exit (int status){
  }
 
 /* thread_name이라는 이름을 가진 현재 프로세스 복제 */
-pid_t fork (const char *thread_name){
+// pid_t fork (const char *thread_name){
 
-}
+// }
 
 /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
-int exec (const char *cmd_line){
+// int exec (const char *cmd_line){
 
-}
+// }
 
 /* 자식 프로세스를 기다려서 자식의 종료 상태를 가져온다. */
-int wait (pid_t pid){
+// int wait (pid_t pid){
 
-}
+// }
 
 /* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size){
@@ -83,14 +83,24 @@ bool create (const char *file, unsigned initial_size){
 // }
 
 /* file 이라는 이름을 가진 파일 오픈 */
-// int open (const char *file){
+int open (const char *file){
+    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file")){
+        return -1;
+    }
 
-// }
+    struct file *open_file = *filesys_open (file);
+
+    if (!open_file){
+        return -1;
+    } else{
+           
+    }
+}
 
 /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
-// int filesize (int fd){
+int filesize (int fd){
 
-// }
+}
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 // int read (int fd, void *buffer, unsigned size){
@@ -146,6 +156,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_OPEN:
+            
+            open (f->R.rdi);
             break;
         
         case SYS_FILESIZE:

@@ -19,7 +19,9 @@
         "loader.h": "c",
         "stdio.h": "c",
         "inode.h": "c",
-        "filesys.h": "c"
+        "filesys.h": "c",
+        "*.inc": "c",
+        "syscall.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
