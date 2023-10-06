@@ -38,27 +38,37 @@ syscall_init (void) {
     write_msr(MSR_SYSCALL_MASK,
             FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
+
+/* Pintos 종료 */
 void
 halt (void){
     power_off();
 }
-// 
+
+/* 동작중인 유저 프로그램 종료 */
 void exit (int status){
-    printf("%s: exit(%d)\n", thread_name(),status);
-    thread_exit();//     if(!status){
-//         printf("%s : exit(%d)\n", thread_name(), status);
-//         thread_exit();
-//     }
-// }
-// // pid_t fork (const char *thread_name){
+    if(!status){
+        printf("%s : exit(%d)\n", thread_name(), status);
+        thread_exit();
+    }
+ }
 
-// }
-// int exec (const char *cmd_line){
+/* thread_name이라는 이름을 가진 현재 프로세스 복제 */
+pid_t fork (const char *thread_name){
 
-// }
-// int wait (pid_t pid){
+}
 
-// }
+/* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
+int exec (const char *cmd_line){
+
+}
+
+/* 자식 프로세스를 기다려서 자식의 종료 상태를 가져온다. */
+int wait (pid_t pid){
+
+}
+
+/* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size){
     bool isCreate = filesys_create(file, initial_size);
     if(isCreate){
@@ -66,32 +76,47 @@ bool create (const char *file, unsigned initial_size){
     }
     return false;
 }
+
+/* file 이라는 이름을 가진 파일 삭제 */
 // bool remove (const char *file){
 
 // }
 
+/* file 이라는 이름을 가진 파일 오픈 */
 // int open (const char *file){
 
 // }
+
+/* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
 // int filesize (int fd){
 
 // }
+
+/* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 // int read (int fd, void *buffer, unsigned size){
 
 // }
+
+/* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
 // int write (int fd, const void *buffer, unsigned size){
 
 // }
+
+/* open file fd에서 읽거나 쓸 다음 바이트를 position으로 변경 */
 // void seek (int fd, unsigned position){
 
 // }
+
+/* 열려진 파일 fd에서 읽히거나 써질 다음 바이트의 위치 반환 */
 // unsigned tell (int fd){
 
 // }
+
+/* 파일 식별자 fd를 닫는다. */
 // void close (int fd){
     
 // }
-// }
+
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
