@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.py": "python",
         "inttypes.h": "c",
         "thread.h": "c",
         "ratio": "c",

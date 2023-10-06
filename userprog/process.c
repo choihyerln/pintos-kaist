@@ -184,7 +184,6 @@ process_exec (void *f_name) {
 	/* 먼저 현재 컨텍스트를 종료합니다. */
 	process_cleanup ();
 
-	/* 그런 다음 이진 파일을 로드합니다. */
 	success = load (file_name, &_if);
 
 	/* 로드에 실패한 경우 종료합니다. */
@@ -201,13 +200,14 @@ process_exec (void *f_name) {
  * 만약 커널에 의해 종료되었거나 (즉, 예외로 인해 종료된 경우) -1을 반환합니다.
  * TID가 유효하지 않거나 호출하는 프로세스의 자식이 아니거나,
  * 주어진 TID에 대해 이미 process_wait()이 성공적으로 호출되었거나, 대기하지 않고 즉시 -1을 반환합니다.
-
  * 이 함수는 2-2 문제에서 구현됩니다. 현재로서는 아무 작업도 수행하지 않습니다.*/
 int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
+
+	
 	return -1;
 }
 
@@ -444,23 +444,23 @@ load (const char *file_name, struct intr_frame *if_) {
 		//argv[i] = if_->rsp;
 	}
 
-
 	/* alignment  : TODO */
-	int k =0;
-	while(if_->rsp %8 != 0){
-		if_->rsp--;
-		k++;
+	int count = 0;
+	while (if_->rsp % 8 != 0){
+		if_->rsp --;
+		count ++;
+	// sp = ROUND_UP(sp, 8);
 	}
-    memset(if_->rsp, 0, k);
+	memset(if_->rsp, 0, count);
 
 	/* 주소 저장 */
-	for (int i=cnt; i >= 0; i--){
+	for (int j = cnt; j >= 0; j--){
 
 		// 주소 크기만큼 rsp 포인터 내려주기
 		if_->rsp-= sizeof(uint64_t);
 
 		// rsp 포인터에 argv[i]의 주소값을 8 byte 만큼 복사 붙여넣기
-		memcpy(if_->rsp, &argv[i], sizeof(uint64_t));
+		memcpy(if_->rsp, &argv[j], sizeof(uint64_t));
 	}
 
 	// rsi, rdi 갱신
@@ -472,6 +472,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	memset(if_->rsp, 0, sizeof(uint64_t));	// rsp
 	//memcpy(if_->rsp, "\0", sizeof(uint64_t));	// rsp
 
+	// hex_dump(if_->rsp,if_->rsp,USER_STACK-if_->rsp,true);
 	
 	success = true;
 
