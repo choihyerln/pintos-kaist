@@ -451,9 +451,12 @@ load (const char *file_name, struct intr_frame *if_) {
 
 
 	/* alignment  : TODO */
-	if_->rsp -= 5;
-	memset(if_->rsp, 0, 5);
-	// sp = ROUND_UP(sp, 8);
+	int k =0;
+	while(if_->rsp %8 != 0){
+		if_->rsp--;
+		k++;
+	}
+    memset(if_->rsp, 0, k);
 
 	/* 주소 저장 */
 	for (int i=cnt; i >= 0; i--){
