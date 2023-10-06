@@ -31,6 +31,7 @@ static void __do_fork (void *);
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
+	current->fd_table->fd = 2;
 }
 
 /* "initd"라는 이름의 첫 번째 사용자 랜드 프로그램을 FILE_NAME에서 로드하고 시작합니다.
@@ -85,6 +86,11 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
+
+	// struct thread *curr = thread_current();
+	// struct intr_frame parent_if;
+	// memcpy(parent_if, &curr->tf, sizeof(struct intr_frame));
+
 	return thread_create (name,
 			PRI_DEFAULT, __do_fork, thread_current ());
 }
@@ -101,15 +107,18 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: 만약 parent_page가 커널 페이지라면, 즉시 반환하세요 */
+	if(is_kern_pte(pte)) return;
 
 	/* 2. 부모의 페이지 맵 레벨 4에서 가상 주소(VA)를 해결합니다. */
 	parent_page = pml4_get_page (parent->pml4, va);
 
 	/* 3. TODO: 자식을 위해 새로운 PAL_USER 페이지를 할당하고 결과를 NEWPAGE로 설정합니다. */
+	// (uint64_t *)newpage = pml4_create();
 
 	/* 4. TODO: 부모의 페이지를 새 페이지로 복제하고,
 	    		부모 페이지가 쓰기 가능한지 여부를 확인하고
 				(결과에 따라 WRITABLE을 설정합니다) */
+	// process_fork(parent->name, &parent->tf);
 
 	/* 5. 주소 VA에 대한 WRITABLE 권한을 갖는 새 페이지를 자식의 페이지 테이블에 추가합니다 */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
@@ -129,7 +138,7 @@ __do_fork (void *aux) {
 	struct intr_frame if_;
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
-	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
+	/* TODO: 어떻게든 부모 인터럽트 프레임(parent_if)을 전달하세요. (예: process_fork()의 if_ 인자) */
 	struct intr_frame *parent_if;
 	bool succ = true;
 
@@ -156,6 +165,7 @@ __do_fork (void *aux) {
 	 		include/filesys/file.h에 있는 'file_duplicate' 함수를 사용하세요.
 			부모가 리소스를 성공적으로 복제하기 전까지 fork()에서 돌아오지 않아야 합니다
 	*/
+	// struct file *file_duplicate (struct file *file);
 
 	process_init ();
 
