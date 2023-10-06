@@ -18,7 +18,8 @@
         "init.h": "c",
         "loader.h": "c",
         "stdio.h": "c",
-        "inode.h": "c"
+        "inode.h": "c",
+        "filesys.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -4,11 +4,11 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/loader.h"
-#include "threads/init.h"
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
 #include "threads/init.h"
+#include "filesys/filesys.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -41,54 +41,68 @@ syscall_init (void) {
 void halt (void){
     power_off();
 }
+
 void exit (int status){
-
+    printf("%s: exit(%d)\n", thread_name(),status);
+    thread_exit();
 }
-pid_t fork (const char *thread_name){
+// pid_t fork (const char *thread_name){
 
-}
-int exec (const char *cmd_line){
+// }
+// int exec (const char *cmd_line){
 
-}
-int wait (pid_t pid){
+// }
+// int wait (pid_t pid){
 
-}
+// }
 bool create (const char *file, unsigned initial_size){
-
+    bool is_create = filesys_create(file, initial_size);
+    if (is_create){
+        return true;
+    } else {
+        return false;
+    }
 }
-bool remove (const char *file){
+// }
+// bool remove (const char *file){
+//     bool is_remove = filesys_remove(const char *file);
+//     if (is_remove){
+//         return true;
+//     } else {
+//         return false;
+//     }
+// }
+// bool remove (const char *file){
 
-}
-bool remove (const char *file){
+// }
+// int filesize (int fd){
 
-}
-int filesize (int fd){
+// }
+// int filesize (int fd){
 
-}
-int filesize (int fd){
+// }
+// int write (int fd, const void *buffer, unsigned size){
 
-}
-int write (int fd, const void *buffer, unsigned size){
+// }
+// void seek (int fd, unsigned position){
 
-}
-void seek (int fd, unsigned position){
+// }
+// unsigned tell (int fd){
 
-}
-unsigned tell (int fd){
-
-}
-void close (int fd){
+// }
+// void close (int fd){
     
-}
+// }
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
     switch(f->R.rax){
         case SYS_HALT:
-            void halt(void); break;
-        
+            halt(); 
+            break;
         case SYS_EXIT:
-            thread_exit(); break;
+            exit(0);
+            break;
         
         case SYS_FORK:
             break;
@@ -100,6 +114,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_CREATE:
+            create (f->R.rdi, f->R.rsi);
             break;
         
         case SYS_REMOVE:
@@ -115,7 +130,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_WRITE:
-            printf("%s", f->R.rsi); break;
+            printf("%s", f->R.rsi);
+            break;
         
         case SYS_SEEK:
             break;
