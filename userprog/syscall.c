@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/loader.h"
+#include "threads/init.h"
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
@@ -41,10 +42,50 @@ syscall_init (void) {
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
-    if (f->R.rax == SYS_WRITE) {
-
-        printf("%s", f->R.rsi);
+    switch(f->R.rax){
+        case SYS_HALT:
+            power_off();
+            break;
+        case SYS_EXIT:
+            printf("%s: exit(0)\n", f->R.rsi);
+            thread_exit ();
+            break;
+        case SYS_FORK:
+            //실행문 넣기
+            break;
+        case SYS_EXEC:
+            //실행문 넣기
+            break;
+        case SYS_WAIT:
+            //실행문 넣기
+            break;
+        case SYS_CREATE:
+            //실행문 넣기
+            break;
+        case SYS_REMOVE:
+            //실행문 넣기
+            break;
+        case SYS_OPEN:
+            //실행문 넣기
+            break;
+        case SYS_FILESIZE:
+            //실행문 넣기
+            break;
+        case SYS_READ:
+            //실행문 넣기
+            break;
+        case SYS_WRITE:
+            printf("%s", f->R.rsi);
+            break;
+        case SYS_SEEK:
+            //실행문 넣기
+            break;
+        case SYS_TELL:
+            //실행문 넣기
+            break;
+        case SYS_CLOSE:
+            //실행문 넣기
+            break;
     }
-    if(f->R.rax == SYS_EXIT)
-        thread_exit ();
 }
+

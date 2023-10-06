@@ -91,7 +91,6 @@ sema_try_down (struct semaphore *sema) {
 void
 sema_up (struct semaphore *sema) {
 	enum intr_level old_level;
-	struct thread* next = NULL;
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();

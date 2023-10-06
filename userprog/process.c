@@ -336,20 +336,6 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
-	char* parse[10];
-	int cnt = 0;
-	char *token, *save_ptr;
-	int total_size=0;
-
-	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL;token = strtok_r(NULL, " ", &save_ptr)){
-			parse[cnt] = token;
-			cnt++;
-		}
-		parse[cnt] = NULL;
-
-		_if.R.rsi = parse[0];
-		_if.R.rdi = cnt;
-
 	/* 실행 파일을 엽니다. */
 	
 	/* parse */
@@ -463,20 +449,23 @@ load (const char *file_name, struct intr_frame *if_) {
 		//argv[i] = if_->rsp;
 	}
 
-
 	/* alignment  : TODO */
-	if_->rsp -= 5;
-	memset(if_->rsp, 0, 5);
+	int count = 0;
+	while (if_->rsp % 8 != 0){
+		if_->rsp --;
+		count ++;
 	// sp = ROUND_UP(sp, 8);
+	}
+	memset(if_->rsp, 0, count);
 
 	/* 주소 저장 */
-	for (int i=cnt; i >= 0; i--){
+	for (int j = cnt; j >= 0; j--){
 
 		// 주소 크기만큼 rsp 포인터 내려주기
 		if_->rsp-= sizeof(uint64_t);
 
 		// rsp 포인터에 argv[i]의 주소값을 8 byte 만큼 복사 붙여넣기
-		memcpy(if_->rsp, &argv[i], sizeof(uint64_t));
+		memcpy(if_->rsp, &argv[j], sizeof(uint64_t));
 	}
 
 	// rsi, rdi 갱신
@@ -488,6 +477,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	memset(if_->rsp, 0, sizeof(uint64_t));	// rsp
 	//memcpy(if_->rsp, "\0", sizeof(uint64_t));	// rsp
 
+	// hex_dump(if_->rsp,if_->rsp,USER_STACK-if_->rsp,true);
 	
 	success = true;
 
