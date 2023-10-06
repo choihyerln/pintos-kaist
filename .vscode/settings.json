@@ -15,13 +15,11 @@
         "debug.h": "c",
         "atomic": "c",
         "cstdint": "c",
-        "init.h": "c",
-        "loader.h": "c",
-        "stdio.h": "c",
-        "inode.h": "c",
-        "filesys.h": "c",
-        "*.inc": "c",
-        "syscall.h": "c"
+        "cstdlib": "c",
+        "numeric": "c",
+        "ostream": "c",
+        "typeinfo": "c",
+        "*.inc": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
