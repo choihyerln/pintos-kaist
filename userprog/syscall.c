@@ -45,13 +45,11 @@ void halt (void) {
 
 /* 동작 중인 유저 프로그램(스레드) 종료 */
 void exit (int status) {
-    struct thread *curr = thread_current();
-    curr->tf.R.rax = status;    // 레지스터에 status 저장 (어차피 종료시킬거니까 아무 레지스터나 사용)
-    printf("%s: exit(%d)\n", thread_name(), curr->tf.R.rax);
+    printf("%s: exit(%d)\n", thread_name(), status);
     thread_exit();
 }
 
-// /* thread_name이라는 이름을 가진 현재 프로세스 복제 */
+/* thread_name이라는 이름을 가진 현재 프로세스 복제 */
 // pid_t fork (const char *thread_name) {
 
 // }
@@ -151,7 +149,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_WRITE:
-            printf("%s", f->R.rsi); break;
+            printf("%s", f->R.rsi);
+            break;
         
         case SYS_SEEK:
             break;
