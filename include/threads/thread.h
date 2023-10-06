@@ -88,7 +88,7 @@ typedef int tid_t;
 struct file_descriprot {
 	struct file *file;
 	int fd;
-}
+};
 
 struct thread {
 	/* Owned by thread.c. */
@@ -104,7 +104,7 @@ struct thread {
 	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
 	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
-	sttuct file_descript table[128]
+	struct file_descriprot fd_table[128];
 	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

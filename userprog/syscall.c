@@ -83,7 +83,7 @@ int open (const char *file){
         return -1;
     }
 
-    struct file *open_file = *filesys_open (file);
+    struct file *open_file = filesys_open (file);
 
     if (!open_file){
         return -1;
