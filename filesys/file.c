@@ -10,9 +10,8 @@ struct file {
 	bool deny_write;            /* Has file_deny_write() been called? */
 };
 
-/* Opens a file for the given INODE, of which it takes ownership,
- * and returns the new file.  Returns a null pointer if an
- * allocation fails or if INODE is null. */
+/* 주어진 INODE를 소유하도록 파일을 열고 새로운 파일을 반환하며,
+   할당에 실패하거나 INODE가 null인 경우 null 포인터 반환 */
 struct file *
 file_open (struct inode *inode) {
 	struct file *file = calloc (1, sizeof *file);
