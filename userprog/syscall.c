@@ -38,15 +38,19 @@ syscall_init (void) {
     write_msr(MSR_SYSCALL_MASK,
             FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
-void halt (void){
+void
+halt (void){
     power_off();
 }
-
+// 
 void exit (int status){
     printf("%s: exit(%d)\n", thread_name(),status);
-    thread_exit();
-}
-// pid_t fork (const char *thread_name){
+    thread_exit();//     if(!status){
+//         printf("%s : exit(%d)\n", thread_name(), status);
+//         thread_exit();
+//     }
+// }
+// // pid_t fork (const char *thread_name){
 
 // }
 // int exec (const char *cmd_line){
@@ -56,29 +60,23 @@ void exit (int status){
 
 // }
 bool create (const char *file, unsigned initial_size){
-    bool is_create = filesys_create(file, initial_size);
-    if (is_create){
+    bool isCreate = filesys_create(file, initial_size);
+    if(isCreate){
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
-// }
 // bool remove (const char *file){
-//     bool is_remove = filesys_remove(const char *file);
-//     if (is_remove){
-//         return true;
-//     } else {
-//         return false;
-//     }
+
 // }
-// bool remove (const char *file){
+
+// int open (const char *file){
 
 // }
 // int filesize (int fd){
 
 // }
-// int filesize (int fd){
+// int read (int fd, void *buffer, unsigned size){
 
 // }
 // int write (int fd, const void *buffer, unsigned size){
@@ -93,6 +91,7 @@ bool create (const char *file, unsigned initial_size){
 // void close (int fd){
     
 // }
+// }
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
@@ -101,7 +100,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
             halt(); 
             break;
         case SYS_EXIT:
-            exit(0);
+            printf("%s: exit(%d)\n", thread_name(), 0);
+            thread_exit();
             break;
         
         case SYS_FORK:
@@ -114,7 +114,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_CREATE:
-            create (f->R.rdi, f->R.rsi);
+            create(f->R.rdi, f->R.rsi);
             break;
         
         case SYS_REMOVE:
