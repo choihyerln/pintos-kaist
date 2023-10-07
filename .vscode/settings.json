@@ -20,7 +20,13 @@
         "ostream": "c",
         "typeinfo": "c",
         "*.inc": "c",
-        "process.h": "c"
+        "process.h": "c",
+        "*.tcc": "c",
+        "chrono": "c",
+        "string_view": "c",
+        "directory.h": "c",
+        "file.h": "c",
+        "filesys.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
