@@ -72,7 +72,7 @@ void exit (int status) {
 
 /* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size) {
-    is_valid_file(file); 
+    is_valid_file(file);
     return filesys_create(file, initial_size);
 }
 
@@ -161,6 +161,11 @@ void close (int fd) {
 
 /* 파일을 삭제하는 시스템 콜 */
 bool remove (const char *file) {
+    is_valid_file(file);
+    return filesys_remove(file);
+}
+
+bool remove (const char *file){
     is_valid_file(file);
     return filesys_remove(file);
 }
