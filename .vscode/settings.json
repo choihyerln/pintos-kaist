@@ -20,13 +20,14 @@
         "ostream": "c",
         "typeinfo": "c",
         "*.inc": "c",
-        "process.h": "c",
-        "*.tcc": "c",
-        "chrono": "c",
-        "string_view": "c",
+        "main.h": "c",
+        "iosfwd": "c",
+        "limits": "c",
+        "stop_token": "c",
+        "streambuf": "c",
+        "filesys.h": "c",
         "directory.h": "c",
-        "file.h": "c",
-        "filesys.h": "c"
+        "file.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
