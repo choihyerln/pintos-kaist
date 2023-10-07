@@ -85,11 +85,6 @@ typedef int tid_t;
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
 
-struct file_descriptor {
-	struct file *file;
-	int fd;
-};
-
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
@@ -104,7 +99,8 @@ struct thread {
 	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
 	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
-	struct file_descriptor fd_table[128];
+	struct file **fd_table;				/* 파일의 배열 */
+	int fd_cnt;							/* 한 프로세스 당 몇개의 파일이 열려있는지 카운트 */
 	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

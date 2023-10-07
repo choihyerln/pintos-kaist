@@ -30,8 +30,9 @@ static void __do_fork (void *);
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
-	struct thread *current = thread_current ();
-	current->fd_table->fd = 2;
+	struct thread *curr = thread_current ();
+	curr->fd_cnt = 2;					// 표준 입출력 0,1 제외
+	curr->fd_table = palloc_get_page(0);	// fd table 초기화
 }
 
 /* "initd"라는 이름의 첫 번째 사용자 랜드 프로그램을 FILE_NAME에서 로드하고 시작합니다.

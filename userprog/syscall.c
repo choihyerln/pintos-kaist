@@ -12,8 +12,11 @@
 #include "filesys/file.h"
 #include "filesys/directory.h"
 #include "string.h"
+#include "filesys/file.h"
+#include "filesys/directory.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+int is_valid_file(const char *file);
 
 /* 시스템 호출.
  *
@@ -72,53 +75,36 @@ void exit (int status) {
 // }
 
 /* 새로운 파일 생성 */
+
 bool create (const char *file, unsigned initial_size) {
-    if (!is_valid_file(file)){
-        return false;
+    if(!is_valid_file(file)){
+        exit(-1);
     }
     return filesys_create(file, initial_size);
+
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
-int is_valid_file(const char* file) {
-    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file") || !(is_user_vaddr(file))){
+int is_valid_file(const char *file) {
+    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)))
+	{
 		return 0;
 	}
     return 1;
 }
 
-/* 파일 디스크립터 설정 함수 */
-int fd_settig(struct thread *curr, struct file *open_file) {
-    for(int i=2; i < 128; i++) {
-        if(curr->fd_table[i].fd == -1) {        
-            curr->fd_table[i].fd = i;
-            curr->fd_table[i].file = open_file;
-            return i;
-        }
-    }
-}
-
 /* file 이라는 이름을 가진 파일 오픈 */
 int open (const char *file) {
-    struct thread *curr = thread_current();
-    if (!is_valid_file(file)){
+    if(!is_valid_file(file)){
         return -1;
     }
-    struct file * open_file = filesys_open (&file);
-    return fd_settig(curr, &open_file);
-}
-
-
-/* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
-int filesize (int fd) {
-    struct thread* curr = thread_current();
-    if (fd < 0 || fd > 128){
-        return -1;
-    }
-    int a = file_length(curr->fd_table[fd].file);
-    printf(a); 
-    return a;
-}
+    struct file *open_file = filesys_open (file);
+    struct thread * curr = thread_current();
+    curr->fd_cnt++;
+    curr->fd_table[curr->fd_cnt] = open_file;
+    return curr->fd_cnt;
+    
+ }
 
 int read(int fd, void *buffer, unsigned size) {
     struct thread *curr = thread_current();
@@ -135,6 +121,20 @@ int read(int fd, void *buffer, unsigned size) {
             return file_read(file, buffer, size);
         }
     }
+}
+
+// }
+
+/* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
+int read(int fd, void *buffer, unsigned size) {
+    struct thread * curr = thread_current();
+    if(fd < 0 || fd > curr->fd_cnt){
+        exit(-1);
+    }
+    if(fd == 0){
+        return input_getc();
+    }
+    return file_read(curr->fd_table[fd], buffer, size);
 }
 
 
@@ -154,12 +154,10 @@ int read(int fd, void *buffer, unsigned size) {
 // }
 
 /* 파일 식별자 fd를 닫는다. */
-void close (int fd){
-    struct thread *curr = thread_current();
-    if (curr->fd_table[fd].fd != -1){
-        file_close(curr->fd_table[fd].file);
-    }
-}
+// void close (int fd) {
+//     // fclose();
+    
+// }
 
 /* 주요 시스템 호출 인터페이스 */
 void
@@ -183,7 +181,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_CREATE:
-            f->R.rax = create(f->R.rdi, f->R.rsi);
+            f->R.rax= create(f->R.rdi, f->R.rsi);
             break;
         
         case SYS_REMOVE:
@@ -198,7 +196,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_READ:
-            f->R.rax = read(f->R.rdi,f->R.rsi,f->R.rdx);
+            f->R.rax = read (f->R.rdi, f->R.rsi, f->R.rdx);
             break;
         
         case SYS_WRITE:
