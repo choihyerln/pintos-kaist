@@ -18,8 +18,7 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
-#include "lib"
-#include "synch.h"
+#include "include/threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -113,8 +112,8 @@ static bool
 duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	struct thread *child = thread_current ();
 	struct thread *parent = (struct thread *) aux;
-	void *parent_page;
-	void *newpage;
+	uint64_t *parent_page;
+	uint64_t *newpage;
 	bool writable;
 
 	/* 1. TODO: 만약 parent_page가 커널 페이지라면, 즉시 반환하세요 */
@@ -124,7 +123,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	parent_page = pml4_get_page (parent->pml4, va);
 
 	/* 3. TODO: 자식을 위해 새로운 PAL_USER (커널)페이지를 할당하고 결과를 NEWPAGE로 설정합니다. */
-	(uint64_t *)newpage = pml4_create();
+	newpage = pml4_create();
 
 	/* 4. TODO: 부모의 페이지를 새 페이지로 복제하고, 부모 페이지가 쓰기 가능한지 여부를 확인하고
 				(결과에 따라 WRITABLE을 설정합니다) */
@@ -183,7 +182,7 @@ __do_fork (void *aux) {
 	process_init ();
 
 	for(int i=2; i < FDT_COUNT_LIMIT; i++){
-		child->fd_table[i] = file_duplicate (file);
+		child->fd_table[i] = file_duplicate (parent->fd_table[i]);
 	}
 	//sema, do_iret, sema init, sema-down/up,
 	// sema_init(&fork_sema, 0);
@@ -192,7 +191,7 @@ __do_fork (void *aux) {
 	/* 마지막으로 새로 생성된 프로세스로 전환합니다. */
 	if (succ) {
 		sema_up(&fork_sema);	
-		do_iret (&if_);
+		do_iret (&tmp_if);
 	}
 
 		//sema up

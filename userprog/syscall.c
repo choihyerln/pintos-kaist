@@ -56,7 +56,7 @@ void exit (int status) {
 }
 
 /* thread_name이라는 이름을 가진 현재 프로세스 복제 */
-pid_t fork (const char *thread_name) {
+tid_t fork (const char *thread_name) {
     return process_fork(thread_name, thread_current()->tf);
 }
 

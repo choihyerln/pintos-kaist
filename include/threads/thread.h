@@ -91,7 +91,7 @@ struct child_info{
 	int8_t is_alive;				/* 죽었니 살았니? */
 	int8_t status;					/* 똥강아지 상태 */
 	struct list_elem c_elem;        /* 똥강아지 elem */
-}
+};
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
