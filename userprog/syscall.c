@@ -30,6 +30,7 @@ void is_valid_file(const char *file);
 #define MSR_LSTAR 0xc0000082        /* 롱 모드 SYSCALL 대상 */
 #define MSR_SYSCALL_MASK 0xc0000084 /* EFLAGS에 대한 마스크 */
 #define MAX_SIZE 1024
+#define FDT_COUNT_LIMIT 128
 
 void
 syscall_init (void) {
@@ -70,10 +71,21 @@ void exit (int status) {
 // }
 
 /* 새로운 파일 생성 */
-
 bool create (const char *file, unsigned initial_size) {
     is_valid_file(file);
     return filesys_create(file, initial_size);
+}
+
+/* 해당 fd로부터 file 찾아주는 함수 */
+struct file *get_file_by_fd(int fd) {
+    struct thread *curr = thread_current();
+    struct file *file;
+
+    if (fd < 0 || fd >= FDT_COUNT_LIMIT || fd == NULL)
+        return NULL;
+
+    file = curr->fd_table[fd];
+    return file;    // file name
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
@@ -95,25 +107,24 @@ int open (const char *file) {
 
 /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
 int filesize (int fd) {
-    struct thread* curr = thread_current();
-    if (fd < 0 || fd > 128)
-        return NULL;
+    struct file *f = get_file_by_fd(fd);
         
-    if (curr->fd_table[fd] == NULL) 
+    if (f == NULL) 
         return 0;
 
-    return file_length(curr->fd_table[fd]);
+    return file_length(f);
 }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 int read(int fd, void *buffer, unsigned size) {
-    struct thread * curr = thread_current();
-    if(fd < 0 || fd > curr->fd_cnt || curr->fd_table[fd] == NULL)
+    struct file *f = get_file_by_fd(fd);
+
+    if(f == NULL)
         exit(-1);
 
     is_valid_file(buffer);
-    
-    return file_read(curr->fd_table[fd], buffer, size);
+
+    return file_read(f, buffer, size);
 }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
@@ -121,9 +132,15 @@ int read(int fd, void *buffer, unsigned size) {
 
 // }
 
-/* open file fd에서 읽거나 쓸 다음 바이트를 position으로 변경 */
+/* open file fd에서 읽거나 쓸 다음 바이트를 position으로 변경 
+   position : 현재 위치(offset)를 기준으로 이동할 거리 */
 // void seek (int fd, unsigned position) {
-
+//     struct thread *curr = thread_current();
+//     is_valid_file(curr->fd_table[fd])
+//     if (fd >= 2)
+//         file_seek(curr->fd_table[fd], position);
+//     else
+//         exit(-1);
 // }
 
 /* 열려진 파일 fd에서 읽히거나 써질 다음 바이트의 위치 반환 */
@@ -133,7 +150,19 @@ int read(int fd, void *buffer, unsigned size) {
 
 /* 파일 식별자 fd를 닫는다. */
 void close (int fd) {
-    file_close(thread_current()->fd_table[fd]);
+    struct file *f = get_file_by_fd(fd);
+
+    if(f == NULL)
+        return;
+    
+    file_close(f);
+    f=NULL;
+}
+
+/* 파일을 삭제하는 시스템 콜 */
+bool remove (const char *file) {
+    is_valid_file(file);
+    return filesys_remove(file);
 }
 
 bool remove (const char *file){
@@ -167,11 +196,11 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_REMOVE:
-            f->R.rax= remove(f->R.rdi);
+            f->R.rax = remove(f->R.rdi);
             break;
         
         case SYS_OPEN:
-            f->R.rax= open(f->R.rdi);   // 파일 이름
+            f->R.rax= open(f->R.rdi);
             break;
         
         case SYS_FILESIZE:
@@ -187,6 +216,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_SEEK:
+            // seek(f->R.rdi);
             break;
         
         case SYS_TELL:
