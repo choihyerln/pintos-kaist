@@ -1,5 +1,6 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
+#define FDT_COUNT_LIMIT 128
 
 #include <debug.h>
 #include <list.h>
@@ -85,6 +86,12 @@ typedef int tid_t;
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
 
+struct child_info{
+	tid_t pid;						/* 똥강아지 주민번호 */
+	int8_t is_alive;				/* 죽었니 살았니? */
+	int8_t status;					/* 똥강아지 상태 */
+	struct list_elem c_elem;        /* 똥강아지 elem */
+}
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
@@ -101,6 +108,9 @@ struct thread {
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
 	struct file **fd_table;				/* 파일의 배열 */
 	int fd_cnt;							/* 한 프로세스 당 몇개의 파일이 열려있는지 카운트 */
+
+	struct list child_list;				/* 똥강아지들의 정보(구조체) 리스트 */
+
 	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
