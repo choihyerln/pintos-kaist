@@ -9,7 +9,9 @@
 #include "intrinsic.h"
 #include "threads/init.h"
 #include "filesys/filesys.h"
-#include "string.h"
+#include "filesys/file.h"
+#include "filesys/directory.h"
+// #include "string.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -26,6 +28,7 @@ void syscall_handler (struct intr_frame *);
 #define MSR_STAR 0xc0000081         /* 세그먼트 선택자 MSR */
 #define MSR_LSTAR 0xc0000082        /* 롱 모드 SYSCALL 대상 */
 #define MSR_SYSCALL_MASK 0xc0000084 /* EFLAGS에 대한 마스크 */
+#define MAX_SIZE 1024
 
 void
 syscall_init (void) {
@@ -67,53 +70,67 @@ void exit (int status) {
 
 /* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size) {
+    if (!is_valid_file(file))
+        exit(-1);
     return filesys_create(file, initial_size);
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
-void is_valid_file(const uint64_t *file) {
-	struct thread *curr = thread_current();
-    if (file == NULL || strlen(file)==0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)))
-	{
-		exit(-1);
-	}
+int is_valid_file(const char *file) {
+    // printf("@ %s\n", file);
+    if (file == NULL || strlen(file) == 0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)))
+        return 0;
+    return 1;
 }
 
 /* 파일 디스크립터 설정 함수 */
-int fd_settig(struct thread *curr, struct file *open_file) {
+int fd_setting(struct file *open_file) {
+    struct thread *curr = thread_current();
+    
     for(int i=2; i < 128; i++) {
         if(curr->fd_table[i].fd == -1) {        
             curr->fd_table[i].fd = i;
             curr->fd_table[i].file = open_file;
-            return curr->fd_table[i].fd;
+            return i;
         }
     }
 }
 
 /* file 이라는 이름을 가진 파일 오픈 */
 int open (const char *file) {
-    is_valid_file(&file);
-    struct file *open_file = filesys_open (file);
-
-    if (!open_file) {
+    // 주소를 읽을 때 
+    if (!is_valid_file(file)) {
         return -1;
-    }
-    else {
-        struct thread *curr = thread_current();
-        fd_settig(curr, open_file);
-    }
+    };
+    struct file *open_file = filesys_open (file);
+    fd_setting(&open_file);
  }
-
 
 // /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
 // int filesize (int fd) {
 
 // }
 
-/* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
-// int read (int fd, void *buffer, unsigned size) {
+/* 
+ * buffer 안에 fd로 열려있는 파일로부터 size 바이트 읽기
+ * buf의 크기가 읽을 크기 size보다 1만큼 더 큰 이유는
+ * 문자열을 저장하기 위해 문자열 끝에 널 종결 문자('\0')를 추가하기 위해서.
+ * buf에 읽은 데이터를 저장하고 나중에 문자열 함수를 사용하여 처리할 때,
+ * 널 종결 문자를 추가할 공간이 필요하다.
+ */
+int read(int fd, void *buffer, unsigned size) {
+    char *local_buffer = buffer;
+    if (fd == 0) {
+        // 한글자 읽기 위해
+        for (unsigned i = 0; i < size; i++)
+            local_buffer[i] = input_getc(); // 밖에서 입력한거 읽어주는 함수
+    }
 
-// }
+    if (fd == 1)
+        return -1;
+    
+    return file_read(thread_current()->fd_table[fd].file, buffer, size);
+}
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
 // int write (int fd, const void *buffer, unsigned size) {
@@ -158,20 +175,21 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_CREATE:
-            create(f->R.rdi, f->R.rsi);
+            f->R.rax= create(f->R.rdi, f->R.rsi);
             break;
         
         case SYS_REMOVE:
             break;
         
         case SYS_OPEN:
-            f->R.rax= open(f->R.rdi);
+            f->R.rax= open(f->R.rdi);   // 파일 이름
             break;
         
         case SYS_FILESIZE:
             break;
         
         case SYS_READ:
+            f->R.rax= read(f->R.rdi, f->R.rsi, f->R.rdx);
             break;
         
         case SYS_WRITE:

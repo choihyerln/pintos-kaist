@@ -19,7 +19,15 @@
         "numeric": "c",
         "ostream": "c",
         "typeinfo": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "main.h": "c",
+        "iosfwd": "c",
+        "limits": "c",
+        "stop_token": "c",
+        "streambuf": "c",
+        "filesys.h": "c",
+        "directory.h": "c",
+        "file.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

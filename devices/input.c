@@ -23,8 +23,8 @@ input_putc (uint8_t key) {
 	serial_notify ();
 }
 
-/* Retrieves a key from the input buffer.
-   If the buffer is empty, waits for a key to be pressed. */
+/* 입력 버퍼에서 키를 검색합니다.
+만약 버퍼가 비어있다면, 키가 눌릴 때까지 기다립니다. */
 uint8_t
 input_getc (void) {
 	enum intr_level old_level;
@@ -38,9 +38,9 @@ input_getc (void) {
 	return key;
 }
 
-/* Returns true if the input buffer is full,
-   false otherwise.
-   Interrupts must be off. */
+/* 인풋 버퍼가 가득 찼을 때 true를 반환하며,
+   그렇지 않으면 false를 반환합니다.
+   인터럽트는 비활성화되어야 합니다. */
 bool
 input_full (void) {
 	ASSERT (intr_get_level () == INTR_OFF);
