@@ -72,13 +72,13 @@ void exit (int status) {
 /* 새로운 파일 생성 */
 
 bool create (const char *file, unsigned initial_size) {
-    is_valid_file(file); 
+    is_valid_file(file);
     return filesys_create(file, initial_size);
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
 void is_valid_file(const char *file) {
-    if (file == NULL || strlen(file) == 0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)) || pml4_get_page(thread_current()->pml4, file) == NULL)
+    if (file == NULL || !(is_user_vaddr(file)) || pml4_get_page(thread_current()->pml4, file) == NULL)
         exit(-1);
 }
 
@@ -136,6 +136,11 @@ void close (int fd) {
     file_close(thread_current()->fd_table[fd]);
 }
 
+bool remove (const char *file){
+    is_valid_file(file);
+    return filesys_remove(file);
+}
+
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
@@ -162,6 +167,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_REMOVE:
+            f->R.rax= remove(f->R.rdi);
             break;
         
         case SYS_OPEN:
