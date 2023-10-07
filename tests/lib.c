@@ -117,9 +117,9 @@ check_file_handle (int fd,
   size_t ofs = 0;
   size_t file_size;
 
-  /* Warn about file of wrong size.  Don't fail yet because we
-     may still be able to get more information by reading the
-     file. */
+  /* 잘못된 크기의 파일에 대한 경고입니다.
+     아직은 실패하지 마십시오.
+     파일을 읽어 더 많은 정보를 얻을 수 있을 수도 있습니다. */
   file_size = filesize (fd);
   if (file_size != size)
     msg ("size of %s (%zu) differs from expected (%zu)",
