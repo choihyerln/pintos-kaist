@@ -14,6 +14,7 @@
 // #include "string.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+int is_valid_file(const char *file);
 
 /* 시스템 호출.
  *
@@ -69,10 +70,12 @@ void exit (int status) {
 // }
 
 /* 새로운 파일 생성 */
+
 bool create (const char *file, unsigned initial_size) {
     if (!is_valid_file(file))
         exit(-1);
     return filesys_create(file, initial_size);
+
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
@@ -98,12 +101,15 @@ int fd_setting(struct file *open_file) {
 
 /* file 이라는 이름을 가진 파일 오픈 */
 int open (const char *file) {
-    // 주소를 읽을 때 
-    if (!is_valid_file(file)) {
+    if(!is_valid_file(file)){
         return -1;
-    };
+    }
     struct file *open_file = filesys_open (file);
-    fd_setting(&open_file);
+    struct thread * curr = thread_current();
+    curr->fd_cnt++;
+    curr->fd_table[curr->fd_cnt] = open_file;
+    return curr->fd_cnt;
+    
  }
 
 // /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
@@ -111,26 +117,18 @@ int open (const char *file) {
 
 // }
 
-/* 
- * buffer 안에 fd로 열려있는 파일로부터 size 바이트 읽기
- * buf의 크기가 읽을 크기 size보다 1만큼 더 큰 이유는
- * 문자열을 저장하기 위해 문자열 끝에 널 종결 문자('\0')를 추가하기 위해서.
- * buf에 읽은 데이터를 저장하고 나중에 문자열 함수를 사용하여 처리할 때,
- * 널 종결 문자를 추가할 공간이 필요하다.
- */
+/* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 int read(int fd, void *buffer, unsigned size) {
-    char *local_buffer = buffer;
-    if (fd == 0) {
-        // 한글자 읽기 위해
-        for (unsigned i = 0; i < size; i++)
-            local_buffer[i] = input_getc(); // 밖에서 입력한거 읽어주는 함수
+    struct thread * curr = thread_current();
+    if(fd < 0 || fd > curr->fd_cnt){
+        exit(-1);
     }
-
-    if (fd == 1)
-        return -1;
-    
-    return file_read(thread_current()->fd_table[fd].file, buffer, size);
+    if(fd == 0){
+        return input_getc();
+    }
+    return file_read(curr->fd_table[fd], buffer, size);
 }
+
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
 // int write (int fd, const void *buffer, unsigned size) {
@@ -148,10 +146,10 @@ int read(int fd, void *buffer, unsigned size) {
 // }
 
 /* 파일 식별자 fd를 닫는다. */
-void close (int fd) {
-    // fclose();
+// void close (int fd) {
+//     // fclose();
     
-}
+// }
 
 /* 주요 시스템 호출 인터페이스 */
 void
@@ -189,7 +187,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_READ:
-            f->R.rax= read(f->R.rdi, f->R.rsi, f->R.rdx);
+            f->R.rax = read (f->R.rdi, f->R.rsi, f->R.rdx);
             break;
         
         case SYS_WRITE:
