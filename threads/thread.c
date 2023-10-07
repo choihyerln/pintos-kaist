@@ -217,13 +217,6 @@ thread_create (const char *name, int priority,
 		thread_yield();	   // 우선순위 비교해서 running할지 확인
 	return tid;
 }
-// 파일 디스크립터 초기화
-void init_fd_table(struct thread *t) {
-    for (int i = 0; i < 128; i++) {
-        t->fd_table[i].file = NULL;
-        t->fd_table[i].fd = -1;  // -1은 사용되지 않음을 나타냄
-    }
-}
 
 /* sleep_list 에 삽입시 우선순위(tick 오름차순) 정렬 --> 갓벽..! */
 bool

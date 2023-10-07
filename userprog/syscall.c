@@ -106,24 +106,14 @@ int open (const char *file) {
     
  }
 
-int read(int fd, void *buffer, unsigned size) {
-    struct thread *curr = thread_current();
-    int bytes_read = -1;
-
-    if (fd == 0) {
-        unsigned i;
-        uint8_t *local_buffer = (uint8_t *) buffer;
-    } else if (fd == 1) {
+ /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
+int filesize (int fd) {
+    struct thread* curr = thread_current();
+    if (fd < 0 || fd > 128){
         return -1;
-    } else if (fd >= 2 && fd < 128) {
-        struct file *file = curr->fd_table[fd].file;
-        if (is_valid_file(file)) {
-            return file_read(file, buffer, size);
-        }
     }
+    return file_length(curr->fd_table[fd]);
 }
-
-// }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 int read(int fd, void *buffer, unsigned size) {
@@ -154,10 +144,10 @@ int read(int fd, void *buffer, unsigned size) {
 // }
 
 /* 파일 식별자 fd를 닫는다. */
-// void close (int fd) {
-//     // fclose();
+void close (int fd) {
+    // fclose();
     
-// }
+}
 
 /* 주요 시스템 호출 인터페이스 */
 void
@@ -197,7 +187,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
         
         case SYS_READ:
             f->R.rax = read (f->R.rdi, f->R.rsi, f->R.rdx);
-            break;
+             break;
         
         case SYS_WRITE:
             printf("%s", f->R.rsi);
