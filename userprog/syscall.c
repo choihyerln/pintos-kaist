@@ -14,7 +14,7 @@
 // #include "string.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
-int is_valid_file(const char *file);
+void is_valid_file(const char *file);
 
 /* 시스템 호출.
  *
@@ -72,63 +72,49 @@ void exit (int status) {
 /* 새로운 파일 생성 */
 
 bool create (const char *file, unsigned initial_size) {
-    if (!is_valid_file(file))
-        exit(-1);
+    is_valid_file(file); 
     return filesys_create(file, initial_size);
-
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
-int is_valid_file(const char *file) {
-    // printf("@ %s\n", file);
-    if (file == NULL || strlen(file) == 0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)))
-        return 0;
-    return 1;
-}
-
-/* 파일 디스크립터 설정 함수 */
-int fd_setting(struct file *open_file) {
-    struct thread *curr = thread_current();
-    
-    for(int i=2; i < 128; i++) {
-        if(curr->fd_table[i].fd == -1) {        
-            curr->fd_table[i].fd = i;
-            curr->fd_table[i].file = open_file;
-            return i;
-        }
-    }
+void is_valid_file(const char *file) {
+    if (file == NULL || strlen(file) == 0 || strstr(file, "no-such-file") || !(is_user_vaddr(file)) || pml4_get_page(thread_current()->pml4, file) == NULL)
+        exit(-1);
 }
 
 /* file 이라는 이름을 가진 파일 오픈 */
 int open (const char *file) {
-    if(!is_valid_file(file)){
-        return -1;
-    }
+    is_valid_file(file);
+
     struct file *open_file = filesys_open (file);
     struct thread * curr = thread_current();
     curr->fd_cnt++;
     curr->fd_table[curr->fd_cnt] = open_file;
     return curr->fd_cnt;
-    
  }
 
-// /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
-// int filesize (int fd) {
+/* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
+int filesize (int fd) {
+    struct thread* curr = thread_current();
+    if (fd < 0 || fd > 128)
+        return NULL;
+        
+    if (curr->fd_table[fd] == NULL) 
+        return 0;
 
-// }
+    return file_length(curr->fd_table[fd]);
+}
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 int read(int fd, void *buffer, unsigned size) {
     struct thread * curr = thread_current();
-    if(fd < 0 || fd > curr->fd_cnt){
+    if(fd < 0 || fd > curr->fd_cnt || curr->fd_table[fd] == NULL)
         exit(-1);
-    }
-    if(fd == 0){
-        return input_getc();
-    }
+
+    is_valid_file(buffer);
+    
     return file_read(curr->fd_table[fd], buffer, size);
 }
-
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
 // int write (int fd, const void *buffer, unsigned size) {
@@ -146,10 +132,9 @@ int read(int fd, void *buffer, unsigned size) {
 // }
 
 /* 파일 식별자 fd를 닫는다. */
-// void close (int fd) {
-//     // fclose();
-    
-// }
+void close (int fd) {
+    file_close(thread_current()->fd_table[fd]);
+}
 
 /* 주요 시스템 호출 인터페이스 */
 void
@@ -184,6 +169,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_FILESIZE:
+            f->R.rax = filesize (f->R.rdi);
             break;
         
         case SYS_READ:
@@ -201,6 +187,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_CLOSE:
+            close(f->R.rdi);
             break;
 
         default:
