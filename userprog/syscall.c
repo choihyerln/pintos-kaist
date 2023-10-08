@@ -59,7 +59,7 @@ void exit (int status) {
 
 /* thread_name이라는 이름을 가진 현재 프로세스 복제 */
 tid_t fork (const char *thread_name) {
-    return process_fork(thread_name, thread_current()->tf);
+    return process_fork(thread_name, &thread_current()->tf);
 }
 
 // /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
@@ -69,12 +69,12 @@ int exec (const char *cmd_line) {
     // 부모 프로세스는 자식 프로세스의 응용 프로그램이 메모리에 탑재 될 대 까지 대기
     is_valid_addr(cmd_line);
 
-    int file_size = strlen(file_name)+1;
+    int file_size = strlen(cmd_line)+1;
     char *fn_copy = palloc_get_page(PAL_ZERO);
     if (fn_copy == NULL) {
         exit(-1);
     }
-    strlcpy(fn_copy, file_name, file_size);
+    strlcpy(fn_copy, cmd_line, file_size);
 
     if (process_exec(fn_copy) == -1){
         return -1;

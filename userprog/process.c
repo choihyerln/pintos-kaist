@@ -231,11 +231,13 @@ process_exec (void *f_name) {
 /** child_tid를 통해 child_thread 주소를 가져오는 entry함수*/
 struct thread* get_child_with_pid(tid_t child_tid){
 	struct list_elem *e;
-	struct list *child_list = thread_current()->child_list;
-	for (e = list_begin(child_list); e != list_end(child_list); e = list_next(e)){
-		struct child_info* t = list_entry(e, struct child_info, c_elem);
-		if (t->tid == child_tid){
-			return t;
+	struct list child_list = thread_current()->child_list;
+	struct child_info* info;
+	for (e = list_begin(&child_list); e != list_end(&child_list); e = list_next(e)){
+		info = list_entry(e, struct child_info, c_elem);
+		
+		if (info->pid == child_tid){
+			return info;
 		}
 	}
 	return NULL;
@@ -251,16 +253,15 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
-	struct child_info *child = get_child_with_pid(child_tid);
+	struct child_info *child_info = get_child_with_pid(child_tid);
+	struct thread* parent = thread_current();
 	
-	if (child == NULL)
+	if (child_info == NULL)
 		return -1;
-	// thread가 부모에 대한 정보를 알고있음.
-
-	sema_down(&child->parent_thread->wait_sema);		// 이게 어떻게 돌아가는지 확인해야할듯
-	int exit_status = child-> status;					// 이게 어떻게 돌아가는지 확인해야할듯
-	list_remve(child-> c_elem);							// 이게 어떻게 돌아가는지 확인해야할듯
-	sema_up(&child->parent_thread-> exit_sema);			// 이게 어떻게 돌아가는지 확인해야할듯
+	
+	sema_down(&parent->wait_sema);
+	int exit_status = child_info-> status;
+	list_remove(&child_info-> c_elem);
 
 	return exit_status;
 }
@@ -268,7 +269,9 @@ process_wait (tid_t child_tid UNUSED) {
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
-	struct thread *curr = thread_current ();
+	struct thread *child = thread_current ();
+	child->parent->wait_sema;
+	sema_up(&child->parent-> wait_sema);
 	process_cleanup ();
 }
 
