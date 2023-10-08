@@ -17,7 +17,7 @@
 // #include "string.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
-void is_valid_file(const char *file);
+void is_valid_addr(const char *file);
 
 /* 시스템 호출.
  *
@@ -33,7 +33,6 @@ void is_valid_file(const char *file);
 #define MSR_LSTAR 0xc0000082        /* 롱 모드 SYSCALL 대상 */
 #define MSR_SYSCALL_MASK 0xc0000084 /* EFLAGS에 대한 마스크 */
 #define MAX_SIZE 1024
-#define FDT_COUNT_LIMIT 128
 
 void
 syscall_init (void) {
@@ -64,9 +63,9 @@ void exit (int status) {
 // }
 
 /* thread_name이라는 이름을 가진 현재 프로세스 복제 */
-// pid_t fork (const char *thread_name) {
-
-// }
+tid_t fork (const char *thread_name) {
+    return process_fork(thread_name, thread_current()->tf);
+}
 
 // /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
 // int exec (const char *cmd_line) {
@@ -79,7 +78,7 @@ void exit (int status) {
 
 /* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size) {
-    is_valid_file(file);
+    is_valid_addr(file);
     return filesys_create(file, initial_size);
 }
 
@@ -96,14 +95,14 @@ struct file *get_file_by_fd(int fd) {
 }
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
-void is_valid_file(const char *file) {
-    if (file == NULL || !(is_user_vaddr(file)) || pml4_get_page(thread_current()->pml4, file) == NULL)
+void is_valid_addr(const char *addr) {
+    if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(thread_current()->pml4, addr) == NULL)
         exit(-1);
 }
 
 /* file 이라는 이름을 가진 파일 오픈 */
 int open (const char *file) {
-    is_valid_file(file);
+    is_valid_addr(file);
 
     struct file *open_file = filesys_open (file);
     struct thread * curr = thread_current();
@@ -129,7 +128,7 @@ int read(int fd, void *buffer, unsigned size) {
     if(f == NULL)
         exit(-1);
 
-    is_valid_file(buffer);
+    is_valid_addr(buffer);
 
     return file_read(f, buffer, size);
 }
@@ -143,7 +142,7 @@ int read(int fd, void *buffer, unsigned size) {
    position : 현재 위치(offset)를 기준으로 이동할 거리 */
 // void seek (int fd, unsigned position) {
 //     struct thread *curr = thread_current();
-//     is_valid_file(curr->fd_table[fd])
+//     is_valid_addr(curr->fd_table[fd])
 //     if (fd >= 2)
 //         file_seek(curr->fd_table[fd], position);
 //     else
@@ -168,14 +167,10 @@ void close (int fd) {
 
 /* 파일을 삭제하는 시스템 콜 */
 bool remove (const char *file) {
-    is_valid_file(file);
+    is_valid_addr(file);
     return filesys_remove(file);
 }
 
-bool remove (const char *file){
-    is_valid_file(file);
-    return filesys_remove(file);
-}
 
 /* 주요 시스템 호출 인터페이스 */
 void
@@ -190,6 +185,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_FORK:
+            fork (f->R.rdi);
             break;
         
         case SYS_EXEC:
