@@ -214,6 +214,7 @@ thread_create (const char *name, int priority,
 
 	// unblock 전에 sema init
 	sema_init(&t->fork_sema, 0);
+	sema_init(&t->wait_sema, 0);
 	thread_unblock (t);		// 자식을 ready list 에 넣기
 	if (t->priority >= thread_current()->priority)
 		thread_yield();	   // 현재 실행중인 스레드 = 부모, readylist 에 있는 스레드 = 자식
@@ -533,6 +534,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->origin_priority = priority;
 	list_init(&t->donation_list);	// donation_list init
 	t->want_lock = NULL;			// want_lock init
+	list_init(&t->child_list);
+	t->parent_if = NULL;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

@@ -59,8 +59,8 @@ void exit (int status) {
 }
 
 /* thread_name이라는 이름을 가진 현재 프로세스 복제 */
-tid_t fork (const char *thread_name) {
-    return process_fork(thread_name, &thread_current()->tf);
+tid_t fork (const char *thread_name, struct intr_frame *parent_if) {
+    return process_fork(thread_name, parent_if);
 }
 
 // /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
@@ -190,7 +190,7 @@ bool remove (const char *file) {
 
 /* 주요 시스템 호출 인터페이스 */
 void
-syscall_handler (struct intr_frame *f UNUSED) {
+syscall_handler (struct intr_frame *f) {
     struct thread *curr = thread_current();
     switch(f->R.rax){
         case SYS_HALT:
@@ -202,7 +202,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_FORK:
-            fork (f->R.rdi);
+            f->R.rax = fork (f->R.rdi, f);
             break;
         
         case SYS_EXEC:
