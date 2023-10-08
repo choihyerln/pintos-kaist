@@ -87,11 +87,11 @@ typedef int tid_t;
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
 
-struct child_info{
-	tid_t pid;						/* 똥강아지 주민번호 */
+struct child_info {
+	tid_t tid;						/* 똥강아지 주민번호 */
 	int8_t is_alive;				/* 죽었니 살았니?   */
 	int8_t status;					/* 똥강아지 상태    */
-	struct list_elem c_elem;        /* 똥강아지 elem    */
+	struct list_elem c_elem;        /* 똥강아지 elem */
 };
 
 struct thread {
