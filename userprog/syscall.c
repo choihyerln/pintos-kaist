@@ -12,6 +12,7 @@
 #include "filesys/file.h"
 #include "filesys/directory.h"
 // #include "string.h"
+
 #include "userprog/process.h"
 #include "threads/palloc.h"
 void syscall_entry (void);
@@ -70,11 +71,13 @@ int exec (const char *cmd_line) {
     is_valid_addr(cmd_line);
 
     int file_size = strlen(cmd_line)+1;
+
     char *fn_copy = palloc_get_page(PAL_ZERO);
     if (fn_copy == NULL) {
         exit(-1);
     }
     strlcpy(fn_copy, cmd_line, file_size);
+
 
     if (process_exec(fn_copy) == -1){
         return -1;

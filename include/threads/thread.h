@@ -13,10 +13,10 @@
 
 /* States in a thread's life cycle. */
 enum thread_status {
-	THREAD_RUNNING,     /* Running thread. */
-	THREAD_READY,       /* Not running but ready to run. */
-	THREAD_BLOCKED,     /* Waiting for an event to trigger. */
-	THREAD_DYING        /* About to be destroyed. */
+    THREAD_RUNNING,     /* Running thread. */
+    THREAD_READY,       /* Not running but ready to run. */
+    THREAD_BLOCKED,     /* Waiting for an event to trigger. */
+    THREAD_DYING        /* About to be destroyed. */
 };
 
 /* Thread identifier type.
@@ -121,18 +121,19 @@ struct thread {
 	struct semaphore fork_sema;			/* 자식 프로세스의 복제 대기 */
 	struct semaphore wait_sema;			/* 자식 프로세스의 생성 대기 */
 
+
 #ifdef USERPROG
-	/* Owned by userprog/process.c. */
-	uint64_t *pml4;                     /* Page map level 4 */
+    /* Owned by userprog/process.c. */
+    uint64_t *pml4;                     /* Page map level 4 */
 #endif
 #ifdef VM
-	/* Table for whole virtual memory owned by thread. */
-	struct supplemental_page_table spt;
+    /* Table for whole virtual memory owned by thread. */
+    struct supplemental_page_table spt;
 #endif
 
-	/* Owned by thread.c. */
-	struct intr_frame tf;               /* Information for switching */
-	unsigned magic;                     /* Detects stack overflow. */
+    /* Owned by thread.c. */
+    struct intr_frame tf;               /* Information for switching */
+    unsigned magic;                     /* Detects stack overflow. */
 };
 
 /* If false (default), use round-robin scheduler.
