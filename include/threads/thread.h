@@ -6,6 +6,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -88,9 +89,10 @@ typedef int tid_t;
 
 struct child_info{
 	tid_t pid;						/* 똥강아지 주민번호 */
-	int8_t is_alive;				/* 죽었니 살았니? */
-	int8_t status;					/* 똥강아지 상태 */
-	struct list_elem c_elem;        /* 똥강아지 elem */
+	int8_t is_alive;				/* 죽었니 살았니?   */
+	int8_t status;					/* 똥강아지 상태    */
+	struct thraed* parent_thread	/* 부모스레드 주소   */
+	struct list_elem c_elem;        /* 똥강아지 elem   */ 
 };
 struct thread {
 	/* Owned by thread.c. */
@@ -101,17 +103,23 @@ struct thread {
 	int origin_priority;				/* 기존 priority */
 
 	/* Shared between thread.c and synch.c. */
+	// alam
 	int64_t end_tick;					/* End tick: alarm 할 때 쓴 거 */
+
+	// priority schedule
 	struct list donation_list;			/* 나한테 기부해준 스레드 담을 리스트 */
 	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
 	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
+
+	// syscall
 	struct file **fd_table;				/* 파일의 배열 */
 	int fd_cnt;							/* 한 프로세스 당 몇개의 파일이 열려있는지 카운트 */
-
 	struct list child_list;				/* 똥강아지들의 정보(구조체) 리스트 */
 
-	
+	struct semaphore wait_sema;			/* 자식 프로세스의 생성 대기 */
+	struct semaphore exit_sema;			/* 자식 프로세스의 졸료 대기*/
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */

@@ -56,8 +56,6 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
-	/* Create a new thread to execute FILE_NAME. */
-
 	int argc = 0;
 	char argv[10];
 	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
@@ -66,7 +64,8 @@ process_create_initd (const char *file_name) {
 		argv[argc] = token;
 		argc++;
 	}
-	
+
+	/* Create a new thread to execute FILE_NAME. */	
 	tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
@@ -229,6 +228,18 @@ process_exec (void *f_name) {
 	NOT_REACHED ();
 }
 
+/** child_tid를 통해 child_thread 주소를 가져오는 entry함수*/
+struct thread* get_child_with_pid(tid_t child_tid){
+	struct list_elem *e;
+	struct list *child_list = thread_current()->child_list;
+	for (e = list_begin(child_list); e != list_end(child_list); e = list_next(e)){
+		struct child_info* t = list_entry(e, struct child_info, c_elem);
+		if (t->tid == child_tid){
+			return t;
+		}
+	}
+	return NULL;
+}
 
 /* 스레드 TID가 종료되기를 기다리고 종료 상태(exit status)를 반환합니다.
  * 만약 커널에 의해 종료되었거나 (즉, 예외로 인해 종료된 경우) -1을 반환합니다.
@@ -240,9 +251,18 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
-	//
+	struct child_info *child = get_child_with_pid(child_tid);
 	
-	return -1;
+	if (child == NULL)
+		return -1;
+	// thread가 부모에 대한 정보를 알고있음.
+
+	sema_down(&child->parent_thread->wait_sema);		// 이게 어떻게 돌아가는지 확인해야할듯
+	int exit_status = child-> status;					// 이게 어떻게 돌아가는지 확인해야할듯
+	list_remve(child-> c_elem);							// 이게 어떻게 돌아가는지 확인해야할듯
+	sema_up(&child->parent_thread-> exit_sema);			// 이게 어떻게 돌아가는지 확인해야할듯
+
+	return exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
