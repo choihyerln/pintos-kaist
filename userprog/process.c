@@ -27,6 +27,7 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+struct child_info* get_child_with_pid(tid_t child_tid);
 static struct intr_frame *parent_if;
 
 static struct semaphore *fork_sema;
@@ -98,10 +99,15 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	struct intr_frame *parent_if;
 	memcpy(parent_if, &parent->tf, sizeof(struct intr_frame));
 
-	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, thread_current ());
-	
-	sema_down(&parent->fork_sema);	// 부모가 스스로 잠자기
-	return child_tid; 
+	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, thread_current());
+    if (child_tid == TID_ERROR)
+        return TID_ERROR;
+
+    if (child_tid) {
+        struct child_info *child = get_child_with_pid(child_tid);
+        sema_down(&parent->fork_sema);	// 부모가 스스로 잠자기
+        return child_tid; 
+    }
 }
 
 
@@ -182,7 +188,7 @@ __do_fork (void *aux) {
 	for(int i=2; i < FDT_COUNT_LIMIT; i++){
 		child->fd_table[i] = file_duplicate (parent->fd_table[i]);
 	}
-	sema_up(&child->fork_sema);	
+	sema_up(&child->parent->fork_sema);	
 
 	/* 마지막으로 새로 생성된 프로세스로 전환합니다. */
 	if (succ) {
@@ -226,19 +232,17 @@ process_exec (void *f_name) {
 
 
 /** child_tid를 통해 child_thread 주소를 가져오는 entry함수*/
-struct thread* get_child_with_pid(tid_t child_tid){
+struct child_info* get_child_with_pid(tid_t child_tid) {
 	struct list_elem *e;
 	struct list child_list = thread_current()->child_list;
-	struct child_info* info;
-	for (e = list_begin(&child_list); e != list_end(&child_list); e = list_next(e)){
+    struct child_info *info;
+	for (e = list_begin(&child_list); e != list_end(&child_list); e = list_next(e)) {
 		info = list_entry(e, struct child_info, c_elem);
-		
-		if (info->pid == child_tid){
+		if (info->tid == child_tid) {
 			return info;
 		}
 	}
-	return NULL;
-
+	// return NULL;
 }
 
 /* 스레드 TID가 종료되기를 기다리고 종료 상태(exit status)를 반환합니다.
@@ -251,15 +255,15 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
-	struct child_info *child_info = get_child_with_pid(child_tid);
+	struct child_info *child = get_child_with_pid(child_tid);
 	struct thread* parent = thread_current();
 	
-	if (child_info == NULL)
+	if (child == NULL)
 		return -1;
 	
 	sema_down(&parent->wait_sema);
-	int exit_status = child_info-> status;
-	list_remove(&child_info-> c_elem);
+	int exit_status = child->status;
+	list_remove(&child->c_elem);
 
 	return exit_status;
 
