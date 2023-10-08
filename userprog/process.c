@@ -28,7 +28,6 @@ static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
 struct child_info* get_child_with_pid(tid_t child_tid);
-static struct intr_frame *parent_if;
 
 static struct semaphore *fork_sema;
 static struct semaphore *wait_sema;
@@ -91,11 +90,11 @@ initd (void *f_name) {
 /* 현재 프로세스를 'name'으로 복제합니다.
  * 새 프로세스의 스레드 ID를 반환하며, 스레드를 생성할 수 없는 경우 TID_ERROR를 반환 */
 tid_t
-process_fork (const char *name, struct intr_frame *if_ UNUSED) {
+process_fork (const char *name, struct intr_frame *if_) {
 	/* Clone current thread to new thread.*/
 
 	struct thread *parent = thread_current();
-	memcpy(parent_if, if_, sizeof(struct intr_frame));
+	memcpy(&parent->parent_if, if_, sizeof(struct intr_frame));
 
 	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, parent);
     if (child_tid == TID_ERROR)
@@ -120,20 +119,21 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: 만약 parent_page가 커널 페이지라면, 즉시 반환하세요 */
-	if(is_kern_pte(pte)) return;
+	if(is_kernel_vaddr(va)) return true;
+	// if(is_kern_pte(pte)) return true;
 
 	/* 2. 부모의 페이지 맵 레벨 4에서 가상 주소(VA)를 해결합니다. */
 	parent_page = pml4_get_page (parent->pml4, va);
+	if(parent_page == NULL) return false;
 
-	/* 3. TODO: 자식을 위해 새로운 PAL_USER (커널)페이지를 할당하고 결과를 NEWPAGE로 설정합니다. */
-	newpage = pml4_create();
+	/* 3. TODO: 자식을 위해 새로운 PAL_USER (유저)페이지를 할당하고 결과를 NEWPAGE로 설정합니다. */
+	newpage = palloc_get_page(PAL_USER);
+	if(newpage == NULL) return false;
 
 	/* 4. TODO: 부모의 페이지를 새 페이지로 복제하고, 부모 페이지가 쓰기 가능한지 여부를 확인하고
 				(결과에 따라 WRITABLE을 설정합니다) */
 	memcpy(newpage, parent_page, PGSIZE);
-	if(is_writable(parent_page)){
-		writable = true;
-	}
+	writable = is_writable(newpage);
 
 	/* 5. 주소 VA에 대한 WRITABLE 권한을 갖는 새 페이지를 자식의 페이지 테이블에 추가합니다 */
 	// 사용자가상페이지( va )에서 커널가상주소 newpage 로 식별된 물리 프레임에 대한 매핑을 PML4( child->pml4 )에 추가
@@ -155,13 +155,13 @@ __do_fork (void *aux) {
 	struct intr_frame tmp_if;
 	struct thread *parent = (struct thread *) aux;
 	struct thread *child = thread_current ();
-	/* TODO: 어떻게든 부모 인터럽트 프레임(parent_if)을 전달하세요. (예: process_fork()의 if_ 인자) */
 	bool succ = true;
 
     parent_if = &parent->tf;
 	/* 1. CPU 컨텍스트를 로컬 스택으로 읽어옵니다. */
-	memcpy (&tmp_if, parent_if, sizeof(struct intr_frame));
-    tmp_if.R.rax = 0;   // 복제 후 비워주기
+	memcpy (&tmp_if, &parent->parent_if, sizeof (struct intr_frame));
+	tmp_if.R.rax = 0;
+
 
 	/* 2. 페이지 테이블(PT)을 복제합니다. */
 	child->pml4 = pml4_create();
@@ -190,13 +190,16 @@ __do_fork (void *aux) {
             continue;
 		child->fd_table[i] = file_duplicate (file);
 	}
+	child->fd_cnt = parent->fd_cnt;
 
-	sema_up(&child->parent->fork_sema);	
+	sema_up(&child->parent->fork_sema);
+
 
 	/* 마지막으로 새로 생성된 프로세스로 전환합니다. */
 	if (succ) {
 		do_iret (&tmp_if);
 	}
+
 error:
     sema_up(&child->parent->fork_sema);
 	exit(TID_ERROR);
@@ -236,15 +239,16 @@ process_exec (void *f_name) {
 /** child_tid를 통해 child_thread 주소를 가져오는 entry함수*/
 struct child_info* get_child_with_pid(tid_t child_tid) {
 	struct list_elem *e;
-	struct list child_list = thread_current()->child_list;
+	struct list *child_list = &thread_current()->child_list;
     struct child_info *info;
-	for (e = list_begin(&child_list); e != list_end(&child_list); e = list_next(e)) {
+
+	for (e = list_begin(child_list); e != list_end(child_list); e = list_next(e)) {
 		info = list_entry(e, struct child_info, c_elem);
 		if (info->tid == child_tid) {
 			return info;
 		}
 	}
-	// return NULL;
+	return NULL;
 }
 
 /* 스레드 TID가 종료되기를 기다리고 종료 상태(exit status)를 반환합니다.
@@ -266,7 +270,6 @@ process_wait (tid_t child_tid UNUSED) {
 	sema_down(&parent->wait_sema);
 	int exit_status = child->status;
 	list_remove(&child->c_elem);
-
 	return exit_status;
 }
 
