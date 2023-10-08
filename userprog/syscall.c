@@ -11,7 +11,9 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "filesys/directory.h"
-// #include "string.h"
+#include "string.h"
+#include "userprog/process.h"
+#include "threads/palloc.h"
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 void is_valid_addr(const char *file);
@@ -61,9 +63,26 @@ tid_t fork (const char *thread_name) {
 }
 
 // /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
-// int exec (const char *cmd_line) {
+int exec (const char *cmd_line) {
+    // 자식 프로세스를 생성하고 프로그램을 실행시키는 시스템 콜
+    // 프로세스 생성에 성공 시 프로세스에 pid값을 반환, 실패시 -1 반환
+    // 부모 프로세스는 자식 프로세스의 응용 프로그램이 메모리에 탑재 될 대 까지 대기
+    is_valid_addr(cmd_line);
 
-// }
+    int file_size = strlen(file_name)+1;
+    char *fn_copy = palloc_get_page(PAL_ZERO);
+    if (fn_copy == NULL) {
+        exit(-1);
+    }
+    strlcpy(fn_copy, file_name, file_size);
+
+    if (process_exec(fn_copy) == -1){
+        return -1;
+    }
+
+    NOT_REACHED();
+    return 0;
+}
 
 // /* 자식 프로세스를 기다려서 자식의 종료 상태를 가져온다. */
 // int wait (pid_t pid) {
@@ -185,6 +204,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_WAIT:
+            f->R.rax = process_wait(f->R.rdi);
             break;
         
         case SYS_CREATE:

@@ -6,16 +6,17 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
 
 /* States in a thread's life cycle. */
 enum thread_status {
-	THREAD_RUNNING,     /* Running thread. */
-	THREAD_READY,       /* Not running but ready to run. */
-	THREAD_BLOCKED,     /* Waiting for an event to trigger. */
-	THREAD_DYING        /* About to be destroyed. */
+    THREAD_RUNNING,     /* Running thread. */
+    THREAD_READY,       /* Not running but ready to run. */
+    THREAD_BLOCKED,     /* Waiting for an event to trigger. */
+    THREAD_DYING        /* About to be destroyed. */
 };
 
 /* Thread identifier type.
@@ -87,43 +88,50 @@ typedef int tid_t;
  * blocked state is on a semaphore wait list. */
 
 struct child_info{
-	tid_t pid;						/* 똥강아지 주민번호 */
-	int8_t is_alive;				/* 죽었니 살았니? */
-	int8_t status;					/* 똥강아지 상태 */
-	struct list_elem c_elem;        /* 똥강아지 elem */
+    tid_t pid;                      /* 똥강아지 주민번호 */
+    int8_t is_alive;                /* 죽었니 살았니?   */
+    int8_t status;                  /* 똥강아지 상태    */
+    struct thraed* parent_thread    /* 부모스레드 주소   */
+    struct list_elem c_elem;        /* 똥강아지 elem   */ 
 };
 struct thread {
-	/* Owned by thread.c. */
-	tid_t tid;                          /* Thread identifier. */
-	enum thread_status status;          /* Thread state. */
-	char name[16];                      /* Name (for debugging purposes). */
-	int priority;                       /* Priority. */
-	int origin_priority;				/* 기존 priority */
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    int priority;                       /* Priority. */
+    int origin_priority;                /* 기존 priority */
 
-	/* Shared between thread.c and synch.c. */
-	int64_t end_tick;					/* End tick: alarm 할 때 쓴 거 */
-	struct list donation_list;			/* 나한테 기부해준 스레드 담을 리스트 */
-	struct lock *want_lock;				/* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
-	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
-	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
-	struct file **fd_table;				/* 파일의 배열 */
-	int fd_cnt;							/* 한 프로세스 당 몇개의 파일이 열려있는지 카운트 */
+    /* Shared between thread.c and synch.c. */
+    // alam
+    int64_t end_tick;                   /* End tick: alarm 할 때 쓴 거 */
 
-	struct list child_list;				/* 똥강아지들의 정보(구조체) 리스트 */
+    // priority schedule
+    struct list donation_list;          /* 나한테 기부해준 스레드 담을 리스트 */
+    struct lock *want_lock;             /* 해당 스레드가 원하는 lock이 뭔지 알아야 함 */
+    struct list_elem d_elem;            /* donation_list init될 때 사용되는 elem */
+    struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
 
-	
+    // syscall
+    struct file **fd_table;             /* 파일의 배열 */
+    int fd_cnt;                         /* 한 프로세스 당 몇개의 파일이 열려있는지 카운트 */
+    struct list child_list;             /* 똥강아지들의 정보(구조체) 리스트 */
+
+    struct semaphore wait_sema;         /* 자식 프로세스의 생성 대기 */
+    struct semaphore exit_sema;         /* 자식 프로세스의 졸료 대기*/
+
 #ifdef USERPROG
-	/* Owned by userprog/process.c. */
-	uint64_t *pml4;                     /* Page map level 4 */
+    /* Owned by userprog/process.c. */
+    uint64_t *pml4;                     /* Page map level 4 */
 #endif
 #ifdef VM
-	/* Table for whole virtual memory owned by thread. */
-	struct supplemental_page_table spt;
+    /* Table for whole virtual memory owned by thread. */
+    struct supplemental_page_table spt;
 #endif
 
-	/* Owned by thread.c. */
-	struct intr_frame tf;               /* Information for switching */
-	unsigned magic;                     /* Detects stack overflow. */
+    /* Owned by thread.c. */
+    struct intr_frame tf;               /* Information for switching */
+    unsigned magic;                     /* Detects stack overflow. */
 };
 
 /* If false (default), use round-robin scheduler.
