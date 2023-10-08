@@ -56,6 +56,8 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	/* Create a new thread to execute FILE_NAME. */
+
 	int argc = 0;
 	char argv[10];
 	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
@@ -64,13 +66,11 @@ process_create_initd (const char *file_name) {
 		argv[argc] = token;
 		argc++;
 	}
-
-	/* Create a new thread to execute FILE_NAME. */	
+	
 	tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
-
 }
 
 /* 첫 번째 사용자 프로세스를 시작하는 스레드 함수 */
@@ -91,54 +91,54 @@ initd (void *f_name) {
  * 새 프로세스의 스레드 ID를 반환하며, 스레드를 생성할 수 없는 경우 TID_ERROR를 반환 */
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
-    /* Clone current thread to new thread.*/
+	/* Clone current thread to new thread.*/
 
-    // fork_sema->value = 0;
-    struct thread *parent = thread_current();
-    struct intr_frame *parent_if;
-    memcpy(parent_if, &parent->tf, sizeof(struct intr_frame));
+	// fork_sema->value = 0;
+	struct thread *parent = thread_current();
+	struct intr_frame *parent_if;
+	memcpy(parent_if, &parent->tf, sizeof(struct intr_frame));
 
-
-    tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, thread_current ());
-    // TODO : sema_init()은 언제, 어디서 할 것인가 -> do_fork..
-    sema_down(&fork_sema);
-    return child_tid; 
+	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, thread_current ());
+	
+	sema_down(&parent->fork_sema);	// 부모가 스스로 잠자기
+	return child_tid; 
 }
+
 
 #ifndef VM
 /* 부모 프로세스의 주소 공간을 복제하기 위해 이 함수를 pml4_for_each에 전달하십시오.
  * 이것은 프로젝트 2 전용입니다. */
 static bool
 duplicate_pte (uint64_t *pte, void *va, void *aux) {
-    struct thread *child = thread_current ();
-    struct thread *parent = (struct thread *) aux;
-    uint64_t *parent_page;
-    uint64_t *newpage;
-    bool writable;
+	struct thread *child = thread_current ();
+	struct thread *parent = (struct thread *) aux;
+	uint64_t *parent_page;
+	uint64_t *newpage;
+	bool writable;
 
-    /* 1. TODO: 만약 parent_page가 커널 페이지라면, 즉시 반환하세요 */
-    if(is_kern_pte(pte)) return;
+	/* 1. TODO: 만약 parent_page가 커널 페이지라면, 즉시 반환하세요 */
+	if(is_kern_pte(pte)) return;
 
-    /* 2. 부모의 페이지 맵 레벨 4에서 가상 주소(VA)를 해결합니다. */
-    parent_page = pml4_get_page (parent->pml4, va);
+	/* 2. 부모의 페이지 맵 레벨 4에서 가상 주소(VA)를 해결합니다. */
+	parent_page = pml4_get_page (parent->pml4, va);
 
-    /* 3. TODO: 자식을 위해 새로운 PAL_USER (커널)페이지를 할당하고 결과를 NEWPAGE로 설정합니다. */
-    newpage = pml4_create();
+	/* 3. TODO: 자식을 위해 새로운 PAL_USER (커널)페이지를 할당하고 결과를 NEWPAGE로 설정합니다. */
+	newpage = pml4_create();
 
-    /* 4. TODO: 부모의 페이지를 새 페이지로 복제하고, 부모 페이지가 쓰기 가능한지 여부를 확인하고
-                (결과에 따라 WRITABLE을 설정합니다) */
-    memcpy(newpage, parent_page, PGSIZE);
-    if(is_writable(parent_page)){
-        writable = true;
-    }
+	/* 4. TODO: 부모의 페이지를 새 페이지로 복제하고, 부모 페이지가 쓰기 가능한지 여부를 확인하고
+				(결과에 따라 WRITABLE을 설정합니다) */
+	memcpy(newpage, parent_page, PGSIZE);
+	if(is_writable(parent_page)){
+		writable = true;
+	}
 
-    /* 5. 주소 VA에 대한 WRITABLE 권한을 갖는 새 페이지를 자식의 페이지 테이블에 추가합니다 */
-    // 사용자가상페이지( va )에서 커널가상주소 newpage 로 식별된 물리 프레임에 대한 매핑을 PML4( child->pml4 )에 추가
-    if (!pml4_set_page (child->pml4, va, newpage, writable)) {
-        /* 6. TODO: if fail to insert page, do error handling. */
-        return false;
-    }
-    return true;
+	/* 5. 주소 VA에 대한 WRITABLE 권한을 갖는 새 페이지를 자식의 페이지 테이블에 추가합니다 */
+	// 사용자가상페이지( va )에서 커널가상주소 newpage 로 식별된 물리 프레임에 대한 매핑을 PML4( child->pml4 )에 추가
+	if (!pml4_set_page (child->pml4, va, newpage, writable)) {
+		/* 6. TODO: if fail to insert page, do error handling. */
+		return false;
+	}
+	return true;
 }
 #endif
 
@@ -149,56 +149,51 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
  */
 static void
 __do_fork (void *aux) {
-    struct intr_frame tmp_if;
-    struct thread *parent = (struct thread *) aux;
-    struct thread *child = thread_current ();
-    /* TODO: 어떻게든 부모 인터럽트 프레임(parent_if)을 전달하세요. (예: process_fork()의 if_ 인자) */
-    struct intr_frame *parent_if;
-    bool succ = true;
+	struct intr_frame tmp_if;
+	struct thread *parent = (struct thread *) aux;
+	struct thread *child = thread_current ();
+	/* TODO: 어떻게든 부모 인터럽트 프레임(parent_if)을 전달하세요. (예: process_fork()의 if_ 인자) */
+	bool succ = true;
 
-    /* 1. CPU 컨텍스트를 로컬 스택으로 읽어옵니다. */
-    memcpy (&tmp_if, parent_if, sizeof (struct intr_frame));
+	/* 1. CPU 컨텍스트를 로컬 스택으로 읽어옵니다. */
+	memcpy (&tmp_if, parent_if, sizeof (struct intr_frame));
 
-    /* 2. 페이지 테이블(PT)을 복제합니다. */
-    child->pml4 = pml4_create();
-    if (child->pml4 == NULL)
-        goto error;
+	/* 2. 페이지 테이블(PT)을 복제합니다. */
+	child->pml4 = pml4_create();
+	if (child->pml4 == NULL)
+		goto error;
 
-    process_activate (child);
+	process_activate (child);
 #ifdef VM
-    supplemental_page_table_init (&child->spt);
-    if (!supplemental_page_table_copy (&child->spt, &parent->spt))
-        goto error;
+	supplemental_page_table_init (&child->spt);
+	if (!supplemental_page_table_copy (&child->spt, &parent->spt))
+		goto error;
 #else
-    if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
-        goto error;
+	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
+		goto error;
 #endif
 
-    /* TODO: 여기에 코드를 작성하세요.
-     * TODO: Hint) 편리하게 파일 객체를 복제하려면
-            include/filesys/file.h에 있는 'file_duplicate' 함수를 사용하세요.
-            부모가 리소스를 성공적으로 복제하기 전까지 fork()에서 돌아오지 않아야 합니다
-    */
-    process_init ();
+	/* 편리하게 파일 객체를 복제하려면
+		include/filesys/file.h에 있는 'file_duplicate' 함수를 사용하세요.
+		부모가 리소스를 성공적으로 복제하기 전까지 fork()에서 돌아오지 않아야 합니다
+	*/
+	process_init ();
 
-    for(int i=2; i < FDT_COUNT_LIMIT; i++){
-        child->fd_table[i] = file_duplicate (parent->fd_table[i]);
-    }
-    //sema, do_iret, sema init, sema-down/up,
-    // sema_init(&fork_sema, 0);
-    // list_push_back(&sema->waiters, parent->c_elem);
+	for(int i=2; i < FDT_COUNT_LIMIT; i++){
+		child->fd_table[i] = file_duplicate (parent->fd_table[i]);
+	}
+	sema_up(&child->fork_sema);	
 
-    /* 마지막으로 새로 생성된 프로세스로 전환합니다. */
-    if (succ) {
-        sema_up(&fork_sema);    
-        do_iret (&tmp_if);
-    }
+	/* 마지막으로 새로 생성된 프로세스로 전환합니다. */
+	if (succ) {
+		do_iret (&tmp_if);
+	}
 
-        //sema up
-        
+		
 error:
-    thread_exit ();
+	thread_exit ();
 }
+
 
 /* 현재의 실행 컨텍스트를 f_name으로 전환합니다.
  * 실패 시 -1을 반환합니다. */
@@ -228,6 +223,7 @@ process_exec (void *f_name) {
     do_iret (&_if);
     NOT_REACHED ();
 }
+
 
 /** child_tid를 통해 child_thread 주소를 가져오는 entry함수*/
 struct thread* get_child_with_pid(tid_t child_tid){

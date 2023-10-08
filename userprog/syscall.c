@@ -88,8 +88,9 @@ int exec (const char *cmd_line) {
 }
 
 // /* 자식 프로세스를 기다려서 자식의 종료 상태를 가져온다. */
-// int wait (pid_t pid) {
-// }
+int wait (tid_t pid) {
+    return process_wait(pid);
+}
 
 /* 새로운 파일 생성 */
 bool create (const char *file, unsigned initial_size) {
@@ -190,6 +191,7 @@ bool remove (const char *file) {
 /* 주요 시스템 호출 인터페이스 */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
+    struct thread *curr = thread_current();
     switch(f->R.rax){
         case SYS_HALT:
             void halt(void);
@@ -207,7 +209,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         
         case SYS_WAIT:
-            f->R.rax = process_wait(f->R.rdi);
+            f->R.rax = wait(f->R.rdi);
             break;
         
         case SYS_CREATE:
