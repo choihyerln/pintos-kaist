@@ -94,22 +94,19 @@ tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
 
-	// fork_sema->value = 0;
 	struct thread *parent = thread_current();
-	struct intr_frame *parent_if;
-	memcpy(parent_if, &parent->tf, sizeof(struct intr_frame));
+	memcpy(parent_if, if_, sizeof(struct intr_frame));
 
-	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, thread_current());
+	tid_t child_tid = thread_create (name, PRI_DEFAULT, __do_fork, parent);
     if (child_tid == TID_ERROR)
         return TID_ERROR;
 
-    if (child_tid) {
-        struct child_info *child = get_child_with_pid(child_tid);
-        sema_down(&parent->fork_sema);	// 부모가 스스로 잠자기
-        return child_tid; 
-    }
+    struct child_info *child = get_child_with_pid(child_tid);
+    sema_down(&parent->fork_sema);	// 부모가 스스로 잠자기
+    if (child->status == -1)
+        return TID_ERROR;
+    return child_tid; 
 }
-
 
 #ifndef VM
 /* 부모 프로세스의 주소 공간을 복제하기 위해 이 함수를 pml4_for_each에 전달하십시오.
@@ -161,8 +158,10 @@ __do_fork (void *aux) {
 	/* TODO: 어떻게든 부모 인터럽트 프레임(parent_if)을 전달하세요. (예: process_fork()의 if_ 인자) */
 	bool succ = true;
 
+    parent_if = &parent->tf;
 	/* 1. CPU 컨텍스트를 로컬 스택으로 읽어옵니다. */
-	memcpy (&tmp_if, parent_if, sizeof (struct intr_frame));
+	memcpy (&tmp_if, parent_if, sizeof(struct intr_frame));
+    tmp_if.R.rax = 0;   // 복제 후 비워주기
 
 	/* 2. 페이지 테이블(PT)을 복제합니다. */
 	child->pml4 = pml4_create();
@@ -186,18 +185,21 @@ __do_fork (void *aux) {
 	process_init ();
 
 	for(int i=2; i < FDT_COUNT_LIMIT; i++){
-		child->fd_table[i] = file_duplicate (parent->fd_table[i]);
+        struct file *file = parent->fd_table[i];
+        if (file == NULL)
+            continue;
+		child->fd_table[i] = file_duplicate (file);
 	}
+
 	sema_up(&child->parent->fork_sema);	
 
 	/* 마지막으로 새로 생성된 프로세스로 전환합니다. */
 	if (succ) {
 		do_iret (&tmp_if);
 	}
-
-		
 error:
-	thread_exit ();
+    sema_up(&child->parent->fork_sema);
+	exit(TID_ERROR);
 }
 
 
@@ -249,7 +251,7 @@ struct child_info* get_child_with_pid(tid_t child_tid) {
  * 만약 커널에 의해 종료되었거나 (즉, 예외로 인해 종료된 경우) -1을 반환합니다.
  * TID가 유효하지 않거나 호출하는 프로세스의 자식이 아니거나,
  * 주어진 TID에 대해 이미 process_wait()이 성공적으로 호출되었거나, 대기하지 않고 즉시 -1을 반환합니다.
- * 이 함수는 2-2 문제에서 구현됩니다. 현재로서는 아무 작업도 수행하지 않습니다.*/
+ * 이 함수는 2-2 문제에서 구현됩니다. 현재로서는 아무 작업도 수행하지 않습니다. */
 int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
@@ -266,7 +268,6 @@ process_wait (tid_t child_tid UNUSED) {
 	list_remove(&child->c_elem);
 
 	return exit_status;
-
 }
 
 /* Exit the process. This function is called by thread_exit (). */
