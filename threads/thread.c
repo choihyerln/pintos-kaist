@@ -210,11 +210,13 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
-
 	/* Add to run queue. */
-	thread_unblock (t);		// status ready로 바꿔주고 새로 생성한거 ready list에 넣어줌
+
+	// unblock 전에 sema init
+	sema_init(&t->fork_sema, 0);
+	thread_unblock (t);		// 자식을 ready list 에 넣기
 	if (t->priority >= thread_current()->priority)
-		thread_yield();	   // 우선순위 비교해서 running할지 확인
+		thread_yield();	   // 현재 실행중인 스레드 = 부모, readylist 에 있는 스레드 = 자식
 	return tid;
 }
 

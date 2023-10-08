@@ -46,30 +46,31 @@ process_init (void) {
  * 이것은 한 번만 호출되어야 함에 주의하십시오. */
 tid_t
 process_create_initd (const char *file_name) {
-    char *fn_copy;
-    tid_t tid;
+	char *fn_copy;
+	tid_t tid;
 
-    /* Make a copy of FILE_NAME.
-     * Otherwise there's a race between the caller and load(). */
-    fn_copy = palloc_get_page (0);
-    if (fn_copy == NULL)
-        return TID_ERROR;
-    strlcpy (fn_copy, file_name, PGSIZE);
+	/* Make a copy of FILE_NAME.
+	 * Otherwise there's a race between the caller and load(). */
+	fn_copy = palloc_get_page (0);
+	if (fn_copy == NULL)
+		return TID_ERROR;
+	strlcpy (fn_copy, file_name, PGSIZE);
 
-    int argc = 0;
-    char argv[10];
-    char *token, *save_ptr;     // 다음 토큰을 찾을 위치
+	int argc = 0;
+	char argv[10];
+	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
 
-    for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
-        argv[argc] = token;
-        argc++;
-    }
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv[argc] = token;
+		argc++;
+	}
 
-    /* Create a new thread to execute FILE_NAME. */ 
-    tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
-    if (tid == TID_ERROR)
-        palloc_free_page (fn_copy);
-    return tid;
+	/* Create a new thread to execute FILE_NAME. */	
+	tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
+	if (tid == TID_ERROR)
+		palloc_free_page (fn_copy);
+	return tid;
+
 }
 
 /* 첫 번째 사용자 프로세스를 시작하는 스레드 함수 */
@@ -230,15 +231,18 @@ process_exec (void *f_name) {
 
 /** child_tid를 통해 child_thread 주소를 가져오는 entry함수*/
 struct thread* get_child_with_pid(tid_t child_tid){
-    struct list_elem *e;
-    struct list *child_list = thread_current()->child_list;
-    for (e = list_begin(child_list); e != list_end(child_list); e = list_next(e)){
-        struct child_info* t = list_entry(e, struct child_info, c_elem);
-        if (t->tid == child_tid){
-            return t;
-        }
-    }
-    return NULL;
+	struct list_elem *e;
+	struct list child_list = thread_current()->child_list;
+	struct child_info* info;
+	for (e = list_begin(&child_list); e != list_end(&child_list); e = list_next(e)){
+		info = list_entry(e, struct child_info, c_elem);
+		
+		if (info->pid == child_tid){
+			return info;
+		}
+	}
+	return NULL;
+
 }
 
 /* 스레드 TID가 종료되기를 기다리고 종료 상태(exit status)를 반환합니다.
@@ -248,28 +252,30 @@ struct thread* get_child_with_pid(tid_t child_tid){
  * 이 함수는 2-2 문제에서 구현됩니다. 현재로서는 아무 작업도 수행하지 않습니다.*/
 int
 process_wait (tid_t child_tid UNUSED) {
-    /* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
-     *          따라서 process_wait를 구현하기 전에
-     *          여기에 무한 루프를 추가하는 것을 권장합니다. */
-    struct child_info *child = get_child_with_pid(child_tid);
-    
-    if (child == NULL)
-        return -1;
-    // thread가 부모에 대한 정보를 알고있음.
+	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
+	 *        	따라서 process_wait를 구현하기 전에
+	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
+	struct child_info *child_info = get_child_with_pid(child_tid);
+	struct thread* parent = thread_current();
+	
+	if (child_info == NULL)
+		return -1;
+	
+	sema_down(&parent->wait_sema);
+	int exit_status = child_info-> status;
+	list_remove(&child_info-> c_elem);
 
-    sema_down(&child->parent_thread->wait_sema);        // 이게 어떻게 돌아가는지 확인해야할듯
-    int exit_status = child-> status;                   // 이게 어떻게 돌아가는지 확인해야할듯
-    list_remve(child-> c_elem);                         // 이게 어떻게 돌아가는지 확인해야할듯
-    sema_up(&child->parent_thread-> exit_sema);         // 이게 어떻게 돌아가는지 확인해야할듯
+	return exit_status;
 
-    return exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
-    struct thread *curr = thread_current ();
-    process_cleanup ();
+	struct thread *child = thread_current ();
+	child->parent->wait_sema;
+	sema_up(&child->parent-> wait_sema);
+	process_cleanup ();
 }
 
 /* 현재 프로세스의 리소스를 해제합니다. */
