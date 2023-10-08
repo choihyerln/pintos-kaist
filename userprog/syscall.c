@@ -194,7 +194,7 @@ syscall_handler (struct intr_frame *f) {
     struct thread *curr = thread_current();
     switch(f->R.rax){
         case SYS_HALT:
-            void halt(void);
+            halt();
             break;
         
         case SYS_EXIT:
@@ -213,15 +213,15 @@ syscall_handler (struct intr_frame *f) {
             break;
         
         case SYS_CREATE:
-            f->R.rax= create(f->R.rdi, f->R.rsi);
+            f->R.rax = create (f->R.rdi, f->R.rsi);
             break;
         
         case SYS_REMOVE:
-            f->R.rax = remove(f->R.rdi);
+            f->R.rax = remove (f->R.rdi);
             break;
         
         case SYS_OPEN:
-            f->R.rax= open(f->R.rdi);
+            f->R.rax= open (f->R.rdi);
             break;
         
         case SYS_FILESIZE:
@@ -244,7 +244,7 @@ syscall_handler (struct intr_frame *f) {
             break;
         
         case SYS_CLOSE:
-            close(f->R.rdi);
+            close (f->R.rdi);
             break;
 
         default:
