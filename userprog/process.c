@@ -178,14 +178,12 @@ __do_fork (void *aux) {
 	bool succ = true;
 
 	/* 1. CPU 컨텍스트를 로컬 스택으로 읽어옵니다. */
-	memcpy (&tmp_if, parent->parent_if, sizeof (struct intr_frame));
+	memcpy (&tmp_if, &parent->parent_if, sizeof (struct intr_frame));
 
 	/* 2. 페이지 테이블(PT)을 복제합니다. */
 	child->pml4 = pml4_create();
 	if (child->pml4 == NULL)
 		goto error;
-
-	tmp_if.R.rax = 0;
 	
     process_activate (child);
 #ifdef VM
@@ -193,6 +191,7 @@ __do_fork (void *aux) {
 	if (!supplemental_page_table_copy (&child->spt, &parent->spt))
 		goto error;
 #else
+
 	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
 		goto error;
 #endif
@@ -210,6 +209,7 @@ __do_fork (void *aux) {
 		child->fd_table[i] = file_duplicate (file);
 	}
 	child->fd_cnt = parent->fd_cnt;
+	tmp_if.R.rax = 0;
 
 	sema_up(&parent->fork_sema);
 
@@ -279,30 +279,39 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
-	struct child_info *child = get_child_with_pid(child_tid);
-	struct thread* parent = thread_current();
+	// struct child_info *child = get_child_with_pid(child_tid);
+	// struct thread* parent = thread_current();
 
-    if (!child_tid)
-        return -1;
+    // if (!child_tid)
+    //     return -1;
 	
-	if (!child)
-		return -1;
+	// if (!child)
+	// 	return -1;
 	
-	sema_down(&parent->wait_sema);
-    // child : exit
-	int exit_status = child->exit_status;
-	list_remove(&child->c_elem);
-    free(child);
-    // sema_up(&parent->free_sema);
+	// sema_down(&parent->wait_sema);
+    // // child : exit
+	// int exit_status = child->exit_status;
+	// list_remove(&child->c_elem);
+    // free(child);
+    // // sema_up(&parent->free_sema);
 
-	return exit_status;
+	// return exit_status;
+    struct thread* curr = thread_current();
+    if(strcmp(curr->name,"main")==0){
+        thread_sleep(300);
+
+    }else{
+        thread_sleep(200);
+
+    }
+    return 0;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
 	struct thread *child = thread_current ();
-	sema_up(&child->parent-> wait_sema);    // 종료할거라고 부모에게 알려줌
+	// sema_up(&child->parent-> wait_sema);    // 종료할거라고 부모에게 알려줌
     // sema_down(&child->parent->free_sema);
 	process_cleanup ();
 }
