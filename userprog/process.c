@@ -36,8 +36,6 @@ static struct semaphore *wait_sema;
 static void
 process_init (void) {
     struct thread *curr = thread_current ();
-    curr->fd_cnt = 2;                       // 표준 입출력 0,1 제외
-    curr->fd_table = palloc_get_page(0);    // fd table 초기화
 }
 
 /* "initd"라는 이름의 첫 번째 사용자 랜드 프로그램을 FILE_NAME에서 로드하고 시작합니다.
@@ -62,12 +60,13 @@ process_create_initd (const char *file_name) {
 	char argv[10];
 	char *token, *save_ptr;		// 다음 토큰을 찾을 위치
 
-	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
-		argv[argc] = token;
-		argc++;
-	}
+	// for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+	// 	argv[argc] = token;
+	// 	argc++;
+	// }
+    token = strtok_r(file_name, " ", &save_ptr);
 	
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (token, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -275,7 +274,7 @@ process_wait (tid_t child_tid UNUSED) {
     if (!child_tid)
         return -1;
 	
-	sema_down(&parent->wait_sema);      // 자식 실행 중일 때 부모 잠들기
+	sema_down(&child->child_t->wait_sema);      // 자식 실행 중일 때 부모 잠들기
 
     /* child : exit!!! */
 	int exit_status = child->exit_status;
@@ -299,18 +298,24 @@ process_wait (tid_t child_tid UNUSED) {
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
-	struct thread *child = thread_current ();
-	for (int i=0; i<FDT_COUNT_LIMIT; i++) {
+	struct thread *t = thread_current ();
+	for (int i=2; i<FDT_COUNT_LIMIT; i++) {
         close(i);
     }
-    struct child_info *info = get_child_with_pid(child->tid, &child->parent->child_list);
-    
-    if(info == NULL){
-        printf("여기서 터짐???\n");
-        return;
+    file_close(t->running);
+    if (t->parent != NULL) { // 부모가 살아있는 경우, 부모가 먼저 죽어있을 수도 있음
+        struct child_info *info = get_child_with_pid(t->tid, &t->parent->child_list);  // 내 유서
+        info->exit_status = t->exit_status; // 내 사망원인 수정
     }
-    info->exit_status = child->exit_status;
-    sema_up(&child->parent-> wait_sema);    // 종료할거라고 부모에게 알려줌
+    palloc_free_page(t->fd_table);
+    
+    while (!list_empty(&t->child_list)) {
+        struct child_info *ch_info = list_entry(list_pop_front(&t->child_list), struct child_info, c_elem);
+        ch_info->child_t->parent = NULL; // 자식한테 "아빠 죽는다~" 알려주기
+        free(ch_info);
+    }
+
+    sema_up(&t->wait_sema);    // 종료할거라고 부모에게 알려줌
 	process_cleanup ();
 }
 
@@ -431,21 +436,23 @@ load (const char *file_name, struct intr_frame *if_) {
     
     /* parse */
     int cnt = 0;
-    char *argv[10];
+    char *argv[128] = { 0, };
     char *token, *save_ptr;     // 다음 토큰을 찾을 위치
 
     for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
         argv[cnt] = token;
         cnt++;
     }
-    // 마지막 NULL 값 넣기
-    argv[cnt] = NULL;
+    // // 마지막 NULL 값 넣기
+    // argv[cnt] = NULL;
 
     file = filesys_open (file_name);
     if (file == NULL) {
         printf ("load: %s: open failed\n", file_name);
         goto done;
     }
+    t->running = file;
+    file_deny_write(file);
 
     /* 실행 가능한 헤더를 읽고 확인합니다. */
     if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -520,15 +527,23 @@ load (const char *file_name, struct intr_frame *if_) {
     /* 시작주소. */
     if_->rip = ehdr.e_entry;
 
+    argument_stack(cnt, argv, if_);
+    // hex_dump(if_->rsp,if_->rsp,USER_STACK-if_->rsp,true);
+    
+    success = true;
 
-    /* 전달할 인자 수 */
-    int argc = cnt;
-    // 위에서 rsp에 userstack 으로 초기화 해줌 (TO DO)
-    char *sp = if_->rsp;
+done:
+    /* 로드가 성공했든 실패했든 이곳에 도달합니다. */
+    // file_close (file);
+    return success;
+}
+
+void argument_stack(int argc, char **argv, struct intr_frame *if_) {
+    char *argv_addr[128];
+        /* 전달할 인자 수 */
     
     /* 데이터 저장 */
-    for (int i=(cnt-1); i >= 0; i--){
-        
+    for (int i=(argc-1); i >= 0; i--){
         // rsp 포인터를 strlen 만큼 내리기
         if_->rsp -= (strlen(argv[i])+1);    // argv[i]+1 : NULL 포인터를 포함시킨 길이
 
@@ -536,7 +551,7 @@ load (const char *file_name, struct intr_frame *if_) {
         memcpy(if_->rsp, argv[i], strlen(argv[i])+1);
         
         // argv 배열에 rsp 주소값 저장 (재사용)
-        argv[i] = (char *)if_->rsp;
+        argv_addr[i] = (char *)if_->rsp;
         //argv[i] = if_->rsp;
     }
 
@@ -550,13 +565,16 @@ load (const char *file_name, struct intr_frame *if_) {
     memset(if_->rsp, 0, count);
 
     /* 주소 저장 */
-    for (int j = cnt; j >= 0; j--){
-
+    for (int j = argc; j >= 0; j--){
         // 주소 크기만큼 rsp 포인터 내려주기
         if_->rsp-= sizeof(uint64_t);
+        if (j == argc) {
+            memset((void *)if_->rsp, 0, sizeof(char **));
+        } else {
 
         // rsp 포인터에 argv[i]의 주소값을 8 byte 만큼 복사 붙여넣기
-        memcpy(if_->rsp, &argv[j], sizeof(uint64_t));
+            memcpy((void *)if_->rsp, &argv_addr[j], sizeof(char **));
+        }
     }
 
     // rsi, rdi 갱신
@@ -565,17 +583,9 @@ load (const char *file_name, struct intr_frame *if_) {
     
     // return address 0 설정
     if_->rsp -= sizeof(uint64_t);
-    memset(if_->rsp, 0, sizeof(uint64_t));  // rsp
+    memset((void *)if_->rsp, 0, sizeof(uint64_t));  // rsp
     //memcpy(if_->rsp, "\0", sizeof(uint64_t)); // rsp
 
-    // hex_dump(if_->rsp,if_->rsp,USER_STACK-if_->rsp,true);
-    
-    success = true;
-
-done:
-    /* 로드가 성공했든 실패했든 이곳에 도달합니다. */
-    file_close (file);
-    return success;
 }
 
 
