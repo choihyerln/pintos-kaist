@@ -55,6 +55,7 @@ void halt (void) {
 /* 동작 중인 유저 프로그램(스레드) 종료 */
 void exit (int status) {
     printf("%s: exit(%d)\n", thread_name(), status);
+    thread_current()->exit_status = status;
     thread_exit();
 }
 
@@ -206,6 +207,7 @@ syscall_handler (struct intr_frame *f) {
             break;
         
         case SYS_EXEC:
+            // exec()
             break;
         
         case SYS_WAIT:

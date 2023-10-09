@@ -90,7 +90,7 @@ typedef int tid_t;
 struct child_info {
 	tid_t tid;						/* 똥강아지 주민번호 */
 	int8_t is_alive;				/* 죽었니 살았니?   */
-	int8_t status;					/* 똥강아지 상태    */
+	int exit_status;				/* 똥강아지 종료될 때 상태 */
 	struct list_elem c_elem;        /* 똥강아지 elem */
 };
 
@@ -112,6 +112,7 @@ struct thread {
 	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
 	struct thread* parent;
+	int exit_status;					/* parent할 때 return value */
 
 	// syscall
 	struct file **fd_table;				/* 파일의 배열 */
