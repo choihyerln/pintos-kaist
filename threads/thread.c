@@ -534,9 +534,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	memset (t, 0, sizeof *t);
 	// sema init
+#ifdef USERPROG
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	list_init(&t->child_list);
+#endif
 	
 	t->status = THREAD_BLOCKED;
 	strlcpy (t->name, name, sizeof t->name);
