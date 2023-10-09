@@ -150,9 +150,31 @@ int read(int fd, void *buffer, unsigned size) {
 }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
-// int write (int fd, const void *buffer, unsigned size) {
+int write (int fd, const void *buffer, unsigned size) {
+    	struct file *f = get_file_by_fd(fd);
 
-// }
+	if (fd == 0)
+		return 0;
+
+	is_valid_addr(buffer);
+
+	if (fd == 1)
+	{
+		putbuf(buffer, size);
+		return size;
+	}
+
+	if (f == NULL)
+		return 0;
+
+	if (size == 0)
+		return 0;
+
+	int i = file_write(f, buffer, size);
+
+	return i;
+
+}
 
 /* open file fd에서 읽거나 쓸 다음 바이트를 position으로 변경 
    position : 현재 위치(offset)를 기준으로 이동할 거리 */
@@ -173,12 +195,13 @@ int read(int fd, void *buffer, unsigned size) {
 /* 파일 식별자 fd를 닫는다. */
 void close (int fd) {
     struct file *f = get_file_by_fd(fd);
+    struct thread* curr = thread_current();
 
     if(f == NULL)
         return;
     
     file_close(f);
-    f=NULL;
+    curr->fd_table[fd] = NULL;
 }
 
 /* 파일을 삭제하는 시스템 콜 */
@@ -237,7 +260,8 @@ syscall_handler (struct intr_frame *f) {
             break;
         
         case SYS_WRITE:
-            printf("%s", f->R.rsi);
+            f->R.rax = write (f->R.rdi, f->R.rsi, f->R.rdx);
+            // printf("%s", f->R.rsi);
             break;
         
         case SYS_SEEK:
