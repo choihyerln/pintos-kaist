@@ -67,7 +67,7 @@ process_create_initd (const char *file_name) {
 		argc++;
 	}
 	
-	tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
+	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -107,8 +107,7 @@ process_fork (const char *name, struct intr_frame *if_) {
     // if (child->status == -1)
     //     // return process_wait(child_tid);
     //     return TID_ERROR;
-    
-    return child_tid; 
+    return child_tid;
 }
 
 #ifndef VM
@@ -128,19 +127,11 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 2. 부모의 페이지 맵 레벨 4에서 가상 주소(VA)를 해결합니다. */
 	parent_page = pml4_get_page (parent->pml4, va);
-	if (parent_page == NULL)
-    {
-        printf("[fork-duplicate] failed to fetch page for user vaddr 'va'\n");
-        return false;
-    }
+	if (parent_page == NULL) return false;
 
 	/* 3. TODO: 자식을 위해 새로운 PAL_USER (유저)페이지를 할당하고 결과를 NEWPAGE로 설정합니다. */
 	newpage = palloc_get_page(PAL_USER);
-	if (newpage == NULL)
-    {
-        printf("[fork-duplicate] failed to palloc new page\n");
-        return false;
-    }
+	if (newpage == NULL) return false;
 
 	/* 4. TODO: 부모의 페이지를 새 페이지로 복제하고, 부모 페이지가 쓰기 가능한지 여부를 확인하고
 				(결과에 따라 WRITABLE을 설정합니다) */
@@ -279,40 +270,45 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
-	// struct child_info *child = get_child_with_pid(child_tid);
-	// struct thread* parent = thread_current();
+	struct child_info *child = get_child_with_pid(child_tid);
+	struct thread* parent = thread_current();
 
-    // if (!child_tid)
-    //     return -1;
+    if (!child_tid)
+        return -1;
 	
-	// if (!child)
-	// 	return -1;
+	if (!child)
+		return -1;
 	
-	// sema_down(&parent->wait_sema);
-    // // child : exit
-	// int exit_status = child->exit_status;
-	// list_remove(&child->c_elem);
-    // free(child);
-    // // sema_up(&parent->free_sema);
+	sema_down(&parent->wait_sema);      // 자식 실행 중일 때 부모 잠들기
 
-	// return exit_status;
-    struct thread* curr = thread_current();
-    if(strcmp(curr->name,"main")==0){
-        thread_sleep(300);
+    /* child : exit!!! */
+	int exit_status = child->exit_status;
+	list_remove(&child->c_elem);
+    free(child);
 
-    }else{
-        thread_sleep(200);
+	return exit_status;
 
-    }
-    return 0;
+    // struct thread* curr = thread_current();
+    // if(strcmp(curr->name,"main")==0){
+    //     thread_sleep(300);
+
+    // }else{
+    //     thread_sleep(200);
+
+    // }
+    // return 0;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
 	struct thread *child = thread_current ();
-	// sema_up(&child->parent-> wait_sema);    // 종료할거라고 부모에게 알려줌
-    // sema_down(&child->parent->free_sema);
+	for (int i=0; i<FDT_COUNT_LIMIT; i++) {
+        close(i);
+    }
+    struct child_info *child_info = get_child_with_pid(child->tid);
+    child_info->exit_status = child->exit_status;
+    sema_up(&child->parent-> wait_sema);    // 종료할거라고 부모에게 알려줌
 	process_cleanup ();
 }
 

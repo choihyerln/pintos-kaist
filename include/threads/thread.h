@@ -89,9 +89,9 @@ typedef int tid_t;
 
 struct child_info {
 	tid_t tid;						/* 똥강아지 주민번호 */
-	int8_t is_alive;				/* 죽었니 살았니?   */
-	int exit_status;				/* 똥강아지 종료될 때 상태 */
+	int exit_status;				/* 똥강아지 종료될 때 return value */
 	struct list_elem c_elem;        /* 똥강아지 elem */
+	struct thread *child_t;			/* 자식스레드 가리키는 스레드 포인터 */
 };
 
 struct thread {

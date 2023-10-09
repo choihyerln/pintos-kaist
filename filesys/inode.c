@@ -290,8 +290,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 /* Disables writes to INODE.
    May be called at most once per inode opener. */
 	void
-inode_deny_write (struct inode *inode) 
-{
+inode_deny_write (struct inode *inode) {
 	inode->deny_write_cnt++;
 	ASSERT (inode->deny_write_cnt <= inode->open_cnt);
 }
