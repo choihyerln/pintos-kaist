@@ -27,7 +27,7 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
-struct child_info* get_child_with_pid(tid_t child_tid);
+struct child_info* get_child_with_pid(tid_t child_tid, struct list *child_list);
 
 static struct semaphore *fork_sema;
 static struct semaphore *wait_sema;
@@ -246,9 +246,8 @@ process_exec (void *f_name) {
 
 
 /** child_tid를 통해 child_thread 주소를 가져오는 entry함수*/
-struct child_info* get_child_with_pid(tid_t child_tid) {
+struct child_info* get_child_with_pid(tid_t child_tid, struct list *child_list) {
 	struct list_elem *e;
-	struct list *child_list = &thread_current()->child_list;
     struct child_info *info;
 
 	for (e = list_begin(child_list); e != list_end(child_list); e = list_next(e)) {
@@ -270,14 +269,11 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
-	struct child_info *child = get_child_with_pid(child_tid);
 	struct thread* parent = thread_current();
+	struct child_info *child = get_child_with_pid(child_tid, &parent->child_list);
 
     if (!child_tid)
         return -1;
-	
-	if (!child)
-		return -1;
 	
 	sema_down(&parent->wait_sema);      // 자식 실행 중일 때 부모 잠들기
 
@@ -299,6 +295,7 @@ process_wait (tid_t child_tid UNUSED) {
     // return 0;
 }
 
+
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
@@ -306,8 +303,13 @@ process_exit (void) {
 	for (int i=0; i<FDT_COUNT_LIMIT; i++) {
         close(i);
     }
-    struct child_info *child_info = get_child_with_pid(child->tid);
-    child_info->exit_status = child->exit_status;
+    struct child_info *info = get_child_with_pid(child->tid, &child->parent->child_list);
+    
+    if(info == NULL){
+        printf("여기서 터짐???\n");
+        return;
+    }
+    info->exit_status = child->exit_status;
     sema_up(&child->parent-> wait_sema);    // 종료할거라고 부모에게 알려줌
 	process_cleanup ();
 }

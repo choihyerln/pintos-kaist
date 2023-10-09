@@ -112,21 +112,19 @@ struct thread {
 	struct list_elem d_elem;			/* donation_list init될 때 사용되는 elem */
 	struct list_elem elem;              /* ready list가 init될 때 사용되는 elem */
 	struct thread* parent;
-	int exit_status;					/* parent할 때 return value */
 
 	// syscall
 	struct file **fd_table;				/* 파일의 배열 */
 	int fd_cnt;							/* 한 프로세스 당 몇개의 파일이 열려있는지 카운트 */
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+	int exit_status;					/* parent할 때 return value */
 	struct list child_list;				/* 똥강아지들의 정보(구조체) 리스트 */
 
 	struct semaphore fork_sema;			/* 자식 프로세스의 복제 대기 */
 	struct semaphore wait_sema;			/* 자식 프로세스의 생성 대기 */
-	struct semaphore free_sema;			/* 부모가 자식 정보 다 가져오면 up */
 	struct intr_frame parent_if;		/* 부모 프로세스의 intr_frame 을 저장 */
-
-
-#ifdef USERPROG
-    /* Owned by userprog/process.c. */
     uint64_t *pml4;                     /* Page map level 4 */
 #endif
 #ifdef VM

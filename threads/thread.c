@@ -60,7 +60,6 @@ static void kernel_thread (thread_func *, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
-void init_fd_table(struct thread *t);
 static void do_schedule(int status);
 static void schedule (void);
 void thread_sleep(int64_t wake_time);
@@ -214,11 +213,14 @@ thread_create (const char *name, int priority,
 	/* Add to run queue. */
 
 	t->parent = thread_current();
-	
+
+#ifdef USERPROG
 	struct child_info *child_info = (struct child_info *) malloc(sizeof(struct child_info));
 	child_info->tid = tid;
 	child_info->exit_status = 0;
+	child_info->child_t = t;
 	list_push_back(&thread_current()->child_list, &child_info->c_elem);
+#endif
 
 	thread_unblock (t);		// 자식을 ready list 에 넣기
 	if (t->priority >= thread_current()->priority)
@@ -531,6 +533,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 	ASSERT (name != NULL);
 
 	memset (t, 0, sizeof *t);
+	// sema init
+	sema_init(&t->fork_sema, 0);
+	sema_init(&t->wait_sema, 0);
+	list_init(&t->child_list);
+	
 	t->status = THREAD_BLOCKED;
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
@@ -539,12 +546,6 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->origin_priority = priority;
 	list_init(&t->donation_list);	// donation_list init
 	t->want_lock = NULL;			// want_lock init
-	list_init(&t->child_list);
-	
-	// sema init
-	sema_init(&t->fork_sema, 0);
-	sema_init(&t->wait_sema, 0);
-	sema_init(&t->free_sema, 0);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
