@@ -19,6 +19,8 @@ void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 void is_valid_addr(const char *file);
 
+struct lock filesys_lock;
+
 /* 시스템 호출.
  *
  * 이전에 시스템 호출 서비스는 인터럽트 핸들러에 의해 처리되었다.
@@ -39,6 +41,8 @@ syscall_init (void) {
     write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
             ((uint64_t)SEL_KCSEG) << 32);
     write_msr(MSR_LSTAR, (uint64_t) syscall_entry);
+
+    lock_init(&filesys_lock);
 
     /* 시스템 호출 진입점이 사용자 영역 스택을 커널 모드 스택으로 교체할 때까지
         인터럽트 서비스 루틴은 어떠한 인터럽트도 처리해서는 안 됩니다.
@@ -112,7 +116,7 @@ struct file *get_file_by_fd(int fd) {
 
 /* file 이라는 이름을 가진 파일 존재하지 않을 경우 처리 */
 void is_valid_addr(const char *addr) {
-    if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(thread_current()->pml4, addr) == NULL)
+    if (is_kernel_vaddr(addr) || pml4_get_page(thread_current()->pml4, addr) == NULL)
         exit(-1);
 }
 
@@ -122,10 +126,35 @@ int open (const char *file) {
 
     struct file *open_file = filesys_open (file);
     struct thread * curr = thread_current();
-    curr->fd_cnt++;
-    curr->fd_table[curr->fd_cnt] = open_file;
-    return curr->fd_cnt;
- }
+    if (open_file == NULL) {
+        return -1;
+    }
+    int fd = add_file_to_fd_table(open_file);
+    if (fd == -1) {
+        file_close(open_file);
+    }
+    return fd;
+}
+
+int add_file_to_fd_table(struct file *file) {
+    struct thread *t = thread_current();
+    struct file **fdt = t->fd_table;
+    int i = 1, fd = -1;
+    for (i = 2; i < FDT_COUNT_LIMIT; i++) {
+        if (fdt[i] == NULL) {
+            fdt[i] = file;
+            fd = i;
+            if (i > t->fd_cnt) {
+                t->fd_cnt = i;
+            }
+            break;
+        }
+    }
+    if (i == FDT_COUNT_LIMIT) {
+        t->fd_cnt = FDT_COUNT_LIMIT;
+    }
+    return fd;
+}
 
 /* fd로서 열려있는 파일의 크기가 몇 바이트인지 반환 */
 int filesize (int fd) {
@@ -139,58 +168,77 @@ int filesize (int fd) {
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 읽기 */
 int read(int fd, void *buffer, unsigned size) {
-    struct file *f = get_file_by_fd(fd);
-
-    if(f == NULL)
-        exit(-1);
-
     is_valid_addr(buffer);
+    uint8_t *buf = buffer;
+    int read_count;
 
-    return file_read(f, buffer, size);
+    if (fd == 0) {
+        char key;
+        for (read_count = 0; read_count < size; read_count++) {
+            key = input_getc();
+            *buf++ = key;
+            if (key == '\0') {
+                break;
+            }
+        }
+    } else if (fd == 1) {
+        return -1;
+    } else {
+        struct file *f = get_file_by_fd(fd);
+        if(f == NULL)
+            exit(-1);
+        lock_acquire(&filesys_lock);
+        read_count = file_read(f, buffer, size);
+        lock_release(&filesys_lock);
+    }
+    return read_count;
 }
 
 /* buffer 안에 fd 로 열려있는 파일로부터 size 바이트 적어줌 */
 int write (int fd, const void *buffer, unsigned size) {
-    	struct file *f = get_file_by_fd(fd);
-
-	if (fd == 0)
-		return 0;
-
 	is_valid_addr(buffer);
-
-	if (fd == 1)
-	{
+    int write_count;
+	if (fd == 0) {
+		return 0;
+    } else if (fd == 1) {
 		putbuf(buffer, size);
-		return size;
-	}
+		write_count = size;
+	} else {
+        struct file *f = get_file_by_fd(fd);
+	    if (f == NULL)
+		    return 0;
+        lock_acquire(&filesys_lock);
+        write_count = file_write(f, buffer, size);
+        lock_release(&filesys_lock);
+    }
 
-	if (f == NULL)
-		return 0;
-
-	if (size == 0)
-		return 0;
-
-	int i = file_write(f, buffer, size);
-
-	return i;
-
+	return write_count;
 }
 
 /* open file fd에서 읽거나 쓸 다음 바이트를 position으로 변경 
    position : 현재 위치(offset)를 기준으로 이동할 거리 */
-// void seek (int fd, unsigned position) {
-//     struct thread *curr = thread_current();
-//     is_valid_addr(curr->fd_table[fd])
-//     if (fd >= 2)
-//         file_seek(curr->fd_table[fd], position);
-//     else
-//         exit(-1);
-// }
+void seek (int fd, unsigned position) {
+    if (fd < 2) {
+        return;
+    }
+    struct file *file = get_file_by_fd(fd);
+    if (file == NULL) {
+        return;
+    }
+    file_seek(file, position);
+}
 
 /* 열려진 파일 fd에서 읽히거나 써질 다음 바이트의 위치 반환 */
-// unsigned tell (int fd) {
-
-// }
+unsigned tell (int fd) {
+    if (fd < 2) {
+        return;
+    }
+    struct file *file = get_file_by_fd(fd);
+    if (file == NULL) {
+        return;
+    }
+    return file_tell(file);
+}
 
 /* 파일 식별자 fd를 닫는다. */
 void close (int fd) {
@@ -261,14 +309,14 @@ syscall_handler (struct intr_frame *f) {
         
         case SYS_WRITE:
             f->R.rax = write (f->R.rdi, f->R.rsi, f->R.rdx);
-            // printf("%s", f->R.rsi);
             break;
         
         case SYS_SEEK:
-            // seek(f->R.rdi);
+            seek(f->R.rdi, f->R.rsi);
             break;
         
         case SYS_TELL:
+            f->R.rax = tell(f->R.rdi);
             break;
         
         case SYS_CLOSE:
