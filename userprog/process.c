@@ -36,7 +36,7 @@ static struct semaphore *wait_sema;
 static void
 process_init (void) {
     struct thread *curr = thread_current ();
-    curr->fd_cnt = 2;                   // 표준 입출력 0,1 제외
+    curr->fd_cnt = 2;                       // 표준 입출력 0,1 제외
     curr->fd_table = palloc_get_page(0);    // fd table 초기화
 }
 
@@ -178,14 +178,16 @@ __do_fork (void *aux) {
 	bool succ = true;
 
 	/* 1. CPU 컨텍스트를 로컬 스택으로 읽어옵니다. */
-	memcpy (&tmp_if, &parent->parent_if, sizeof (struct intr_frame));
+	memcpy (&tmp_if, parent->parent_if, sizeof (struct intr_frame));
 
 	/* 2. 페이지 테이블(PT)을 복제합니다. */
 	child->pml4 = pml4_create();
 	if (child->pml4 == NULL)
 		goto error;
 
-	process_activate (child);
+	tmp_if.R.rax = 0;
+	
+    process_activate (child);
 #ifdef VM
 	supplemental_page_table_init (&child->spt);
 	if (!supplemental_page_table_copy (&child->spt, &parent->spt))
@@ -201,7 +203,7 @@ __do_fork (void *aux) {
 	*/
 	process_init ();
 
-	for(int i=2; i < FDT_COUNT_LIMIT; i++){
+	for(int i=2; i < FDT_COUNT_LIMIT; i++) {
         struct file *file = parent->fd_table[i];
         if (!file)
             continue;
@@ -209,9 +211,7 @@ __do_fork (void *aux) {
 	}
 	child->fd_cnt = parent->fd_cnt;
 
-	sema_up(&child->parent->fork_sema);
-
-	tmp_if.R.rax = 0;
+	sema_up(&parent->fork_sema);
 
 	/* 마지막으로 새로 생성된 프로세스로 전환합니다. */
 	if (succ) {
@@ -219,7 +219,7 @@ __do_fork (void *aux) {
 	}
 
 error:
-    sema_up(&child->parent->fork_sema);
+    sema_up(&parent->fork_sema);
 	exit(TID_ERROR);
 }
 
@@ -275,34 +275,27 @@ struct child_info* get_child_with_pid(tid_t child_tid) {
  * 주어진 TID에 대해 이미 process_wait()이 성공적으로 호출되었거나, 대기하지 않고 즉시 -1을 반환합니다.
  * 이 함수는 2-2 문제에서 구현됩니다. 현재로서는 아무 작업도 수행하지 않습니다. */
 int
-process_wait (tid_t child_tid UNUSED) 
-// {
+process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) Pintos는 process_wait(initd)를 호출하면 종료합니다.  
 	 *        	따라서 process_wait를 구현하기 전에
 	 * 	       	여기에 무한 루프를 추가하는 것을 권장합니다. */
-	// struct child_info *child = get_child_with_pid(child_tid);
-	// struct thread* parent = thread_current();
+	struct child_info *child = get_child_with_pid(child_tid);
+	struct thread* parent = thread_current();
 
-    // if (child_tid < 0)
-    //     return -1;
+    if (!child_tid)
+        return -1;
 	
-	// if (!child)
-	// 	return -1;
+	if (!child)
+		return -1;
 	
-	// sema_down(&parent->wait_sema);
-
-	// int exit_status = child->status;
-	// list_remove(&child->c_elem);
-
+	sema_down(&parent->wait_sema);
+    // child : exit
+	int exit_status = child->exit_status;
+	list_remove(&child->c_elem);
+    free(child);
     // sema_up(&parent->free_sema);
 
-	// return exit_status;
-// }
-{
-    for (int i = 0; i < 100000000; i++)
-    {
-    }
-    return -1;
+	return exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -310,7 +303,7 @@ void
 process_exit (void) {
 	struct thread *child = thread_current ();
 	sema_up(&child->parent-> wait_sema);    // 종료할거라고 부모에게 알려줌
-    sema_down(&child->parent->free_sema);
+    // sema_down(&child->parent->free_sema);
 	process_cleanup ();
 }
 

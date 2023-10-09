@@ -217,12 +217,14 @@ thread_create (const char *name, int priority,
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
 
+	t->parent = thread_current();
+	
 	// #ifdef USERPROG
-	struct child_info *child_info = (struct child_info *)malloc(sizeof(struct child_info));	
+	struct child_info *child_info = (struct child_info *)malloc(sizeof(struct child_info));
 	child_info->tid = tid;
-	child_info->status = 0;
+	child_info->exit_status = 0;
 	child_info->is_alive = 1;
-	list_push_back(&t->child_list, &child_info->c_elem);
+	list_push_back(&thread_current()->child_list, &child_info->c_elem);
 	// #endif  /* USERPROG */
 
 	thread_unblock (t);		// 자식을 ready list 에 넣기
