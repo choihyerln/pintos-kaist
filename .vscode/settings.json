@@ -28,6 +28,5 @@
         "filesys.h": "c",
         "directory.h": "c",
         "file.h": "c"
-    },
-    "C_Cpp.errorSquiggles": "disabled"
+    }
 }

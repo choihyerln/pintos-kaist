@@ -10,4 +10,7 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (struct thread *next);
 
+/* Project 2 */
+void argument_stack(int, char **, struct intr_frame *);
+
 #endif /* userprog/process.h */

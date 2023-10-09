@@ -219,7 +219,11 @@ thread_create (const char *name, int priority,
 	child_info->tid = tid;
 	child_info->exit_status = 0;
 	child_info->child_t = t;
+	child_info->exited = false;
 	list_push_back(&thread_current()->child_list, &child_info->c_elem);
+
+	t->fd_cnt = 2;                       // 표준 입출력 0,1 제외
+    t->fd_table = palloc_get_page(0);    // fd table 초기화
 #endif
 
 	thread_unblock (t);		// 자식을 ready list 에 넣기
