@@ -54,7 +54,6 @@ sema_down (struct semaphore *sema) {
 	while (sema->value == 0) {
 		list_push_back(&sema->waiters, &run_curr->elem);
 		thread_block ();	// 세마 = 0일 때, 요청 들어오면 세마리스트에 추가 후 block 처리
-
 	}
 	sema->value--;			// sema = 1일 때
 	intr_set_level (old_level);		// 인터럽트 상태 반환

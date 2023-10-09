@@ -65,20 +65,19 @@ tid_t fork (const char *thread_name, struct intr_frame *parent_if) {
 }
 
 // /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경 */
-int exec (const char *cmd_line) {
+int exec (const char *file_name) {
     // 자식 프로세스를 생성하고 프로그램을 실행시키는 시스템 콜
     // 프로세스 생성에 성공 시 프로세스에 pid값을 반환, 실패시 -1 반환
     // 부모 프로세스는 자식 프로세스의 응용 프로그램이 메모리에 탑재 될 대 까지 대기
-    is_valid_addr(cmd_line);
+    is_valid_addr(file_name);
 
-    int file_size = strlen(cmd_line)+1;
+    int file_size = strlen(file_name)+1;
 
     char *fn_copy = palloc_get_page(PAL_ZERO);
     if (fn_copy == NULL) {
         exit(-1);
     }
-    strlcpy(fn_copy, cmd_line, file_size);
-
+    strlcpy(fn_copy, file_name, file_size);
 
     if (process_exec(fn_copy) == -1){
         return -1;
@@ -207,7 +206,10 @@ syscall_handler (struct intr_frame *f) {
             break;
         
         case SYS_EXEC:
-            // exec()
+            if (exec(f->R.rdi) == -1)
+            {
+            exit(-1);
+            }
             break;
         
         case SYS_WAIT:

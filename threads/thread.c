@@ -125,6 +125,7 @@ thread_init (void) {
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
 	struct lock *lock;
+	
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -212,20 +213,12 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 	/* Add to run queue. */
 
-	// unblock 전에 sema init
-	sema_init(&t->fork_sema, 0);
-	sema_init(&t->wait_sema, 0);
-	sema_init(&t->free_sema, 0);
-
 	t->parent = thread_current();
 	
-	// #ifdef USERPROG
-	struct child_info *child_info = (struct child_info *)malloc(sizeof(struct child_info));
+	struct child_info *child_info = (struct child_info *) malloc(sizeof(struct child_info));
 	child_info->tid = tid;
 	child_info->exit_status = 0;
-	child_info->is_alive = 1;
 	list_push_back(&thread_current()->child_list, &child_info->c_elem);
-	// #endif  /* USERPROG */
 
 	thread_unblock (t);		// 자식을 ready list 에 넣기
 	if (t->priority >= thread_current()->priority)
@@ -547,7 +540,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 	list_init(&t->donation_list);	// donation_list init
 	t->want_lock = NULL;			// want_lock init
 	list_init(&t->child_list);
-	// t->parent_if = NULL;
+	
+	// sema init
+	sema_init(&t->fork_sema, 0);
+	sema_init(&t->wait_sema, 0);
+	sema_init(&t->free_sema, 0);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
