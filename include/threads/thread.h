@@ -122,7 +122,7 @@ struct thread {
 	struct semaphore fork_sema;			/* 자식 프로세스의 복제 대기 */
 	struct semaphore wait_sema;			/* 자식 프로세스의 생성 대기 */
 	struct semaphore free_sema;			/* 부모가 자식 정보 다 가져오면 up */
-	struct intr_frame *parent_if;		/* 부모 프로세스의 intr_frame 을 저장 */
+	struct intr_frame parent_if;		/* 부모 프로세스의 intr_frame 을 저장 */
 
 
 #ifdef USERPROG
