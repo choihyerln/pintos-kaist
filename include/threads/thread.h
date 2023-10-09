@@ -89,9 +89,10 @@ typedef int tid_t;
 
 struct child_info {
 	tid_t tid;						/* 똥강아지 주민번호 */
-	int exit_status;				/* 똥강아지 종료될 때 return value */
+	int exit_status;				/* 똥강아지 종료될 때 return value 자식 사망 원인 */ 
 	struct list_elem c_elem;        /* 똥강아지 elem */
 	struct thread *child_t;			/* 자식스레드 가리키는 스레드 포인터 */
+	bool exited;					/* 자식 사망 여부 */
 };
 
 struct thread {
@@ -121,7 +122,7 @@ struct thread {
     /* Owned by userprog/process.c. */
 	int exit_status;					/* parent할 때 return value */
 	struct list child_list;				/* 똥강아지들의 정보(구조체) 리스트 */
-
+	struct file *running;
 	struct semaphore fork_sema;			/* 자식 프로세스의 복제 대기 */
 	struct semaphore wait_sema;			/* 자식 프로세스의 생성 대기 */
 	struct intr_frame parent_if;		/* 부모 프로세스의 intr_frame 을 저장 */
